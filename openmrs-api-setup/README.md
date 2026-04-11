@@ -33,4 +33,4 @@ curl -u admin:Admin123 -H "Content-Type: application/json" \
 }' "http://localhost/openmrs/ws/rest/v1/encounter"
 
 ## Result
-OpenMRS REST API was successfully verified locally.
+OpenMRS REST API was successfully verified locally ✔️
