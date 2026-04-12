@@ -1,0 +1,53 @@
+# Transcript 06 — Mental Health / Psychiatric Follow-up
+# Patient: Female, 29 years old, depression and anxiety
+# Difficulty: High — sensitive topic, vague symptoms, no clear objective vitals initially, medication adjustment
+
+Doctor: Hey Sarah, good to see you. Come on in. How have you been since last month?
+
+Patient: Honestly? Not great. I thought the — uh — increasing the sertraline was going to help but I still feel pretty flat. Like I'm going through the motions.
+
+Doctor: Tell me more about "flat." Are you feeling sad, numb, empty?
+
+Patient: More numb, I guess. Like nothing really feels good or bad. I used to love going out with my friends and now I just... don't care. I cancel on them a lot.
+
+Doctor: How long has this been since the dose increase?
+
+Patient: We changed it like five weeks ago? I know you said give it eight weeks but it's been rough.
+
+Doctor: Understood. Are you sleeping?
+
+Patient: Too much, honestly. I could sleep 12 hours. I make myself get up at 9 but I could sleep all day.
+
+Doctor: Appetite?
+
+Patient: Not great. I've probably lost about 8 pounds since January. I'm just not hungry.
+
+Doctor: Any thoughts of harming yourself or not wanting to be alive?
+
+Patient: [pause] Not like... actively. But sometimes I think things would just be easier if I wasn't here. It's more passive than like — a plan. I don't have a plan.
+
+Doctor: Thank you for telling me that. That's really important. Are you safe right now?
+
+Patient: Yeah. Yes. I'm safe.
+
+Doctor: Okay. Do you have support at home?
+
+Patient: My roommate, yeah. She's good. She checks in on me.
+
+Doctor: How about anxiety — any panic attacks, constant worry?
+
+Patient: The anxiety is actually better than the depression right now. I take the lorazepam when I really need it but I've only used it twice this month.
+
+Doctor: Good. Any side effects from the sertraline — nausea, sexual side effects, headaches?
+
+Patient: A little nausea at first but that's gone. Sexual side effects a bit, yeah. It's annoying.
+
+Doctor: Let me take your vitals. BP 108 over 68, heart rate 76, weight 127 pounds — that's down 8 pounds from January as you noted. PHQ-9 today is 17, GAD-7 is 9. Last month PHQ-9 was 15.
+
+Doctor: So your PHQ-9 has actually ticked up slightly which aligns with what you're describing. Given the passive suicidal ideation I want to make sure we're monitoring you closely. I don't think inpatient is warranted right now given you have no plan and you feel safe, but I want to see you in two weeks rather than a month. I'm going to adjust your sertraline from 100 milligrams to 150 milligrams once daily. I'm also adding bupropion XL 150 milligrams once daily in the morning — it may help with energy and motivation and is sometimes used to augment sertraline, and it may help with the sexual side effects too. Continue the lorazepam 0.5 milligrams as needed but try to keep it to no more than three times a week — it's not a long-term solution. I also strongly recommend we get you back into therapy — are you open to that?
+
+Patient: Yeah, I think I need it. I stopped going like six months ago.
+
+Doctor: I'll send a referral today. And please reach out before two weeks if things get worse — call us, or if it becomes more than passive thoughts, go to the ER or call 988.
+
+Patient: Okay. Thank you.

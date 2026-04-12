@@ -1,0 +1,59 @@
+# Transcript 04 — Pediatric Fever / URI
+# Patient: Female child, 5 years old (mother accompanying)
+# Difficulty: Medium (third-party historian, child interjections)
+
+Doctor: Hi there! And who do we have here?
+
+Mother: This is Lily. Say hi, Lily.
+
+Child: Hi.
+
+Doctor: Hi Lily! I'm Dr. Kim. What brings you guys in today?
+
+Mother: She's had a fever for three days. It started Sunday — we're Tuesday now. It got up to 103.8 at home.
+
+Doctor: Has it been continuous or coming and going?
+
+Mother: It goes down when I give her Tylenol, but comes back a few hours later.
+
+Doctor: What dose of Tylenol are you giving?
+
+Mother: The bottle said one and a half teaspoons. She's 44 pounds.
+
+Doctor: Okay, that's about right. Any other symptoms? Cough, runny nose?
+
+Mother: Runny nose, yes, a lot of it. Cough started yesterday, it's kind of wet sounding. She said her throat hurts too.
+
+Child: It hurts a lot!
+
+Doctor: I'm sorry, Lily, we'll take a look. Any ear pain?
+
+Mother: She hasn't said so, but she's been kind of tugging at her left ear.
+
+Doctor: Vomiting, diarrhea?
+
+Mother: No vomiting. Soft stools yesterday but nothing alarming.
+
+Doctor: Is she eating and drinking okay?
+
+Mother: Not great. She's had a few popsicles and some juice. She won't eat her regular food.
+
+Doctor: Decreased appetite with illness is common. Any sick contacts — school, daycare?
+
+Mother: Her whole class has been sick. At least three kids stayed home last week.
+
+Doctor: Any history of frequent ear infections?
+
+Mother: Yes, she had four last year. We talked about tubes but ended up not doing it.
+
+Doctor: Vaccinations up to date?
+
+Mother: Yes, everything.
+
+Doctor: Okay, let me take a look at you, Lily. Can you open your mouth wide? Temperature today is 101.6. Weight 44.2 pounds. Heart rate 108, respiratory rate 22. O2 sat 99%. Throat is erythematous with mild tonsillar enlargement and exudates bilaterally. TM on the left is erythematous and bulging with decreased mobility. Right TM normal. Lymphadenopathy in anterior cervical chain bilaterally. Lungs clear. Rapid strep test is positive.
+
+Doctor: So Lily has strep pharyngitis and left otitis media. Because she has both and a history of recurrent ear infections, I want to treat with amoxicillin 400 milligrams per 5 mL — I'll prescribe the 250 milligrams per 5 mL formulation, 5 mL twice daily for 10 days. That covers both the strep and the ear infection. Continue the acetaminophen for fever — you can alternate with ibuprofen if needed: ibuprofen 100 milligrams per 5 mL, give 7 mL every 6 to 8 hours with food.
+
+Mother: Should she stay home from school?
+
+Doctor: Yes, until she's been on antibiotics for 24 hours and is fever-free. Come back if the fever goes above 104, she develops a rash, or she's not improving by Thursday.

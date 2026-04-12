@@ -1,0 +1,60 @@
+# Transcript 05 — Messy Transcript with Crosstalk, Filler Words, Interruptions
+# Patient: Male, 44 years old, lower back pain
+# Difficulty: HIGH — heavy crosstalk, filler words, topic jumping, incomplete sentences
+# This tests the prompt's robustness with poor transcription quality
+
+Doctor: So uh, Mr. Chen, what's uh — what brings you in today?
+
+Patient: Yeah so um, my back. It's been killing me. Like uh — started maybe, uh, I want to say like two weeks ago? Maybe three.
+
+Doctor: Two to three weeks. And where exactly —
+
+Patient: Right here, like — [sound of shuffling] — low, like the lower part. Yeah. Not up high.
+
+Doctor: Okay, so lower lumbar. Does it —
+
+Patient: And also sometimes it goes down my — you know — down my leg.
+
+Doctor: Which leg?
+
+Patient: The right one. Like down the back of my —
+
+Doctor: Sciatica-like radiation.
+
+Patient: Yeah, yeah exactly. It's like a shooting — it's like when you hit your funny bone? That kind of feeling but in my leg.
+
+Doctor: On a scale of one to ten —
+
+Patient: Oh it's like a — depends. Like in the morning it's — uh — maybe a seven? Eight? But if I sit for a while at work it goes up.
+
+Doctor: What kind of work do you do?
+
+Patient: I'm a — uh — I drive. Delivery driver. So I'm in the truck like eight, sometimes ten hours.
+
+Doctor: Any weakness in the leg? Like when you —
+
+Patient: I mean — I don't know — sometimes when I go up stairs my — it like gives out on me a little? I noticed it — uh — couple times last week.
+
+Doctor: That's important. Any bowel or bladder changes?
+
+Patient: No no no, nothing like that. Normal.
+
+Doctor: Any trauma, fall, accident?
+
+Patient: Nothing I can think of. I mean I lifted a heavy package, like a refrigerator-type situation, uh — about a month ago? Could that be it?
+
+Doctor: Possibly. Any prior back issues?
+
+Patient: I had — uh — something years ago. They gave me like, a physical therapy thing but that was — I mean I was in my thirties.
+
+Doctor: Okay let me examine you. I'm going to have you — yeah, lie back. [pause] So vitals: BP 124 over 78, heart rate 74, weight 194 pounds. I'm noting limited lumbar flexion to about 40 degrees with pain. Straight leg raise is positive at 45 degrees on the right. Motor strength 4 out of 5 in right EHL and right dorsiflexion. Sensation slightly reduced along L5 dermatomal distribution on the right. Reflexes — patellar and Achilles — 2+ bilaterally and symmetric.
+
+Doctor: Okay so — yeah. This is concerning for an L4-L5 disk herniation with right-sided L5 radiculopathy. Given the motor findings I want to get an MRI of the lumbar spine — we'll order that today. I'm going to start you on naproxen 500 milligrams twice daily with food. Also cyclobenzaprine 5 milligrams at bedtime for the muscle component — don't drive on that one. And I want to get you into physical therapy — I'll put in a referral.
+
+Patient: What about like a steroid thing? My cousin had that.
+
+Doctor: We'll consider an epidural steroid injection if the MRI confirms significant nerve compression and PT doesn't help after four to six weeks. If you develop any sudden weakness, loss of bladder or bowel control, go to the ER immediately.
+
+Patient: Okay yeah. How long is this gonna —
+
+Doctor: Hard to say yet. Let's see what the MRI shows. Follow up with me in two weeks.

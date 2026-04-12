@@ -1,0 +1,43 @@
+# Transcript 03 — Diabetes Management Follow-up
+# Patient: Male, 67 years old, Type 2 DM x 12 years
+# Difficulty: Medium (complex medication list, some confusion about doses)
+
+Doctor: Mr. Johnson, welcome back. Let's see how your diabetes has been doing since I saw you in January.
+
+Patient: It's been up and down, to be honest. I've been checking my sugar like you said but some mornings it's really high, like 180, 190.
+
+Doctor: What time are you checking it?
+
+Patient: First thing when I wake up, before breakfast.
+
+Doctor: And what about after meals?
+
+Patient: I don't always check after meals. Should I be?
+
+Doctor: Yes, that's helpful data. What are you eating in the mornings?
+
+Patient: Toast usually, sometimes with peanut butter. Orange juice.
+
+Doctor: That juice is likely spiking your glucose. Let's talk about that. Are you taking your metformin consistently?
+
+Patient: Yes, 1000 milligrams twice a day, with breakfast and dinner.
+
+Doctor: Good. And the glipizide?
+
+Patient: I forget sometimes. Maybe I miss one a week.
+
+Doctor: Okay, that's worth addressing. Any hypoglycemic episodes — feeling shaky, sweaty, dizzy?
+
+Patient: Once or twice. I had a bad one two weeks ago after I skipped lunch.
+
+Doctor: Understood. Any vision changes, numbness in your feet, chest pain?
+
+Patient: My feet tingle sometimes. More the right one. At night mostly.
+
+Doctor: Vitals today: BP 142 over 88, heart rate 68, weight 218 pounds — up 4 pounds from January. HbA1c today is 8.4%, up from 7.9% in January. Fasting glucose this morning 176. Kidney function — creatinine 1.1, eGFR 72, which is stable. Urine microalbumin 42 — borderline elevated. Foot exam shows reduced monofilament sensation in the plantar aspect of the right foot. No ulcers or lesions.
+
+Doctor: So your control has slipped a bit and there are early signs of peripheral neuropathy. I want to optimize your regimen. I'm going to add empagliflozin 10 milligrams once daily — it helps glucose and also protects the kidneys. I want you to continue metformin 1000 milligrams twice daily and glipizide 5 milligrams twice daily, but really try not to miss doses. I'm also going to start you on gabapentin 300 milligrams at bedtime for the neuropathy pain in your feet. And I'm referring you to the diabetes education program again for dietary counseling.
+
+Patient: Is there something I should be doing differently?
+
+Doctor: Cut out the orange juice, limit white bread. I'll have the nurse give you a sheet. Check your sugar two hours after meals as well as in the morning. Come back in eight weeks.

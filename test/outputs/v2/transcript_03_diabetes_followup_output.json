@@ -1,0 +1,60 @@
+{
+  "transcript_file": "transcript_03_diabetes_followup.txt",
+  "prompt_version": "v2",
+  "model": "gpt-4o",
+  "timestamp": "2026-04-12T10:04:33",
+  "result": {
+    "parsed": {
+      "chief_complaint": "67-year-old male with Type 2 diabetes mellitus presenting for follow-up with worsening fasting glucose readings and new bilateral foot tingling.",
+      "historian": "patient",
+      "subjective": "Patient is a 67-year-old male with a 12-year history of Type 2 diabetes mellitus presenting for follow-up. Reports fasting morning glucose readings of 180–190 mg/dL. Not consistently monitoring postprandial glucose. Dietary intake includes toast, peanut butter, and orange juice in the morning. Currently taking metformin 1000 mg twice daily without missed doses; reports missing glipizide approximately once weekly. Reports 1–2 hypoglycemic episodes, including one significant episode two weeks ago following a skipped meal. Denies chest pain or visual changes. Reports bilateral foot tingling, predominantly the right foot, worse at night.",
+      "objective": "Vitals: BP 142/88 mmHg, HR 68 bpm, weight 218 lbs (up 4 lbs from January). HbA1c: 8.4% (increased from 7.9% in January). Fasting glucose: 176 mg/dL. Creatinine: 1.1 mg/dL; eGFR: 72 mL/min/1.73m² (stable). Urine microalbumin: 42 mcg/mg (borderline elevated). Foot exam: reduced monofilament sensation on plantar aspect of right foot; no ulcers or lesions.",
+      "assessment": "1. Type 2 diabetes mellitus — suboptimal glycemic control; HbA1c worsening from 7.9% to 8.4% despite current oral regimen. Partial non-adherence to glipizide contributing. 2. Early diabetic peripheral neuropathy — reduced plantar sensation right foot. 3. Borderline microalbuminuria — early diabetic nephropathy possible; eGFR stable.",
+      "plan": "1. Add empagliflozin 10 mg once daily for improved glycemic control and renal protection. 2. Add gabapentin 300 mg at bedtime for peripheral neuropathy symptoms. 3. Continue metformin 1000 mg twice daily; reinforce adherence. 4. Continue glipizide 5 mg twice daily; counsel on importance of dose consistency and meal timing to prevent hypoglycemia. 5. Dietary modifications: eliminate orange juice, reduce refined carbohydrates, increase fiber intake. 6. Begin postprandial glucose monitoring (2 hours after meals) in addition to fasting. 7. Refer to diabetes education program for dietary counseling.",
+      "medications_new": [
+        {
+          "name": "Empagliflozin",
+          "dose": "10 mg",
+          "route": "oral",
+          "frequency": "once daily",
+          "duration": null,
+          "status": "new",
+          "indication": "glycemic control and renal protection in Type 2 DM"
+        },
+        {
+          "name": "Gabapentin",
+          "dose": "300 mg",
+          "route": "oral",
+          "frequency": "once daily at bedtime",
+          "duration": null,
+          "status": "new",
+          "indication": "diabetic peripheral neuropathy"
+        }
+      ],
+      "medications_existing": [
+        {
+          "name": "Metformin",
+          "dose": "1000 mg",
+          "route": "oral",
+          "frequency": "twice daily"
+        },
+        {
+          "name": "Glipizide",
+          "dose": "5 mg",
+          "route": "oral",
+          "frequency": "twice daily"
+        }
+      ],
+      "follow_up": {
+        "timeframe": "8 weeks",
+        "conditions": []
+      }
+    },
+    "error": null
+  },
+  "validation": {
+    "valid": true,
+    "issues": []
+  },
+  "tester_notes": "V2 IMPROVEMENT: medications_new now cleanly contains only empagliflozin and gabapentin (the two new prescriptions). medications_existing correctly contains metformin and glipizide with their current doses. No ambiguity about what was prescribed today vs what the patient was already on. follow_up.timeframe cleanly extracted as '8 weeks'. PASS."
+}

@@ -1,0 +1,63 @@
+{
+  "transcript_file": "transcript_02_chest_pain.txt",
+  "prompt_version": "v2",
+  "model": "gpt-4o",
+  "timestamp": "2026-04-12T10:03:15",
+  "result": {
+    "parsed": {
+      "chief_complaint": "61-year-old female presenting with midsternal chest pain since the previous evening, radiating to jaw and left arm, associated with diaphoresis and nausea.",
+      "historian": "patient",
+      "subjective": "Patient is a 61-year-old female with a history of hypertension and significant cardiovascular risk factors presenting with midsternal chest pain onset the previous evening. Pain initially rated 8/10, currently 6/10, radiates to the jaw and left arm (described as heaviness). Associated symptoms include mild dyspnea on exertion, nausea the previous evening, and diaphoresis upon waking this morning. Current medications: lisinopril (dose not specified) for hypertension. Family history: maternal MI at age 65. Smoking history: 20 pack-years, ceased 8 years ago. No diabetes.",
+      "objective": "Vitals: BP 158/94 mmHg (right arm), HR 96 bpm (regular), RR 18/min, O2 sat 95% on room air. General: anxious-appearing, diaphoretic. Neck: JVP not elevated. Cardiovascular: regular rate and rhythm, no murmurs, rubs, or gallops. Pulmonary: mild bibasilar crackles. Extremities: no edema. EKG: ST-segment depression in leads V4–V6. Troponin I: 0.08 ng/mL (elevated). BNP: 320 pg/mL.",
+      "assessment": "1. Acute coronary syndrome (NSTEMI vs. unstable angina) — clinical presentation with chest pain, jaw/arm radiation, diaphoresis, elevated troponin, ST-segment depression in V4–V6, and elevated BNP in a patient with multiple cardiovascular risk factors. Urgent cardiology evaluation warranted.",
+      "plan": "1. Aspirin 325 mg PO — administer immediately (chew). 2. Initiate IV heparin anticoagulation per ACS protocol. 3. Sublingual nitroglycerin for ongoing chest pain. 4. Urgent cardiology consultation. 5. Hospital admission for continued monitoring and management. 6. Continue home lisinopril pending cardiology guidance.",
+      "medications_new": [
+        {
+          "name": "Aspirin",
+          "dose": "325 mg",
+          "route": "oral",
+          "frequency": "once (immediately — chew)",
+          "duration": null,
+          "status": "new",
+          "indication": "acute coronary syndrome"
+        },
+        {
+          "name": "Heparin",
+          "dose": "per protocol",
+          "route": "IV",
+          "frequency": "continuous infusion",
+          "duration": null,
+          "status": "new",
+          "indication": "anticoagulation for ACS"
+        },
+        {
+          "name": "Nitroglycerin",
+          "dose": "0.4 mg",
+          "route": "sublingual",
+          "frequency": "as needed for chest pain (may repeat q5 min x3)",
+          "duration": null,
+          "status": "new",
+          "indication": "chest pain relief"
+        }
+      ],
+      "medications_existing": [
+        {
+          "name": "Lisinopril",
+          "dose": "",
+          "route": "oral",
+          "frequency": "daily"
+        }
+      ],
+      "follow_up": {
+        "timeframe": "inpatient admission — outpatient follow-up per cardiology",
+        "conditions": []
+      }
+    },
+    "error": null
+  },
+  "validation": {
+    "valid": true,
+    "issues": []
+  },
+  "tester_notes": "V2 IMPROVEMENT: Lisinopril now correctly in medications_existing, not mixed with new prescriptions. Heparin protocol dose acknowledged as unknown (not fabricated). chief_complaint gives immediate context. PASS."
+}

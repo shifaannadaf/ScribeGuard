@@ -1,1 +1,0 @@
-# Radhika OpenMRS Setup Work

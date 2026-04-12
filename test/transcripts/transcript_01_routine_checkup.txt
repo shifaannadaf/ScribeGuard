@@ -1,0 +1,37 @@
+# Transcript 01 — Routine Annual Checkup
+# Patient: Male, 52 years old
+# Difficulty: Low (clean audio, cooperative patient)
+
+Doctor: Good morning, Mr. Thompson. How are you feeling today?
+
+Patient: Pretty good, doc. Just here for my annual checkup. No major complaints really.
+
+Doctor: Great. Any new symptoms since we last met? Chest pain, shortness of breath, anything like that?
+
+Patient: No, nothing like that. I do get a little tired in the afternoons sometimes, but I figure that's just age, you know?
+
+Doctor: How long has that been going on?
+
+Patient: Maybe two, three months? It's not bad, I just notice it around 2 or 3 PM.
+
+Doctor: Okay. Are you sleeping well?
+
+Patient: Yeah, about seven hours a night. My wife says I snore a bit but I don't wake up feeling terrible.
+
+Doctor: Any changes in weight, appetite, bowel habits?
+
+Patient: Lost about five pounds over the last few months without trying. Appetite's been fine though.
+
+Doctor: Alright. Let me check your vitals. Blood pressure is 138 over 86. Heart rate 72, regular. Temperature 98.4. Oxygen saturation 98% on room air. You're five foot eleven, weigh 201 pounds — that puts your BMI at about 28. Lungs are clear bilaterally. Heart sounds normal, no murmurs. Abdomen soft, non-tender.
+
+Doctor: Your labs from last week — fasting glucose 112, which is slightly elevated. Total cholesterol 214, LDL 138, HDL 42. Triglycerides 189. TSH is within normal limits at 2.1. CBC and metabolic panel otherwise unremarkable.
+
+Doctor: Based on everything, you're in pre-diabetic range and your lipids are borderline. The fatigue and unintentional weight loss are worth watching. I'd like to start you on metformin 500 milligrams twice daily with meals to address the pre-diabetes. I'm also going to start atorvastatin 20 milligrams once daily at bedtime for the cholesterol.
+
+Patient: Do I really need both of those?
+
+Doctor: I think so. We'll recheck your labs in three months. I also want you to cut back on refined carbs and get at least 30 minutes of moderate exercise five days a week. We'll talk about a referral to a dietitian as well.
+
+Patient: Alright, I can do that.
+
+Doctor: Okay, follow up in three months. If the fatigue gets worse or you lose more weight unexpectedly, call us sooner.

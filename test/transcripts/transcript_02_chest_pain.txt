@@ -1,0 +1,51 @@
+# Transcript 02 — Acute Chest Pain Presentation
+# Patient: Female, 61 years old
+# Difficulty: Medium (urgent, emotionally distressed patient)
+
+Nurse: Mrs. Rivera, the doctor is here.
+
+Doctor: Mrs. Rivera, I'm Dr. Patel. Tell me what's going on.
+
+Patient: I've had this chest pain since last night. It's really scary. I thought — I thought maybe it was just heartburn but it didn't go away.
+
+Doctor: Okay. Can you point to where the pain is?
+
+Patient: Right here, in the middle. [pause] Sometimes it goes up into my jaw too.
+
+Doctor: Does it go anywhere else — down your arm, your back?
+
+Patient: My left arm feels a little heavy. It's been like that since this morning.
+
+Doctor: On a scale of one to ten, how bad is the pain right now?
+
+Patient: Maybe a six. It was worse earlier, like an eight.
+
+Doctor: Any shortness of breath?
+
+Patient: Yes, a little. Not terrible but I noticed it when I walked in here.
+
+Doctor: Any nausea or sweating?
+
+Patient: I felt nauseous last night. And yes, I was sweating when I woke up.
+
+Doctor: Do you have a history of heart problems?
+
+Patient: My mother had a heart attack at 65. I had high blood pressure for years. I take lisinopril for it.
+
+Doctor: Any diabetes?
+
+Patient: No.
+
+Doctor: Do you smoke?
+
+Patient: I used to. Quit eight years ago. Smoked for about twenty years before that.
+
+Doctor: Alright. Let me examine you. Blood pressure is 158 over 94 in the right arm. Heart rate 96 and regular. Respiratory rate 18. O2 sat 95% on room air. She appears anxious and diaphoretic. Jugular venous pressure is not elevated. Cardiac exam reveals regular rate and rhythm, no murmurs, rubs, or gallops. Lungs with mild bibasilar crackles. Lower extremities show no edema.
+
+Doctor: EKG shows ST-segment depression in leads V4 through V6, which is concerning. Troponin I came back at 0.08, which is elevated. BNP is 320.
+
+Doctor: Mrs. Rivera, I'm concerned this may be an acute coronary syndrome — possibly a heart attack. We need to act quickly. I'm going to give you aspirin 325 milligrams to chew right now, and we're starting heparin as an IV anticoagulant. I'm also adding nitroglycerin sublingual for the pain, and we're getting cardiology on the phone now. We'll be admitting you.
+
+Patient: Oh my God. Is it serious?
+
+Doctor: It's serious and we're taking it seriously. You're in the right place. We're going to take good care of you.

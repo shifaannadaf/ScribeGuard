@@ -1,0 +1,26 @@
+{
+  "transcript_file": "transcript_06_mental_health.txt",
+  "prompt_version": "v1",
+  "model": "gpt-4o",
+  "timestamp": "2026-04-12T09:20:47",
+  "result": {
+    "raw_response": "{\"subjective\": \"Patient is a 29-year-old female with depression and anxiety presenting for psychiatric follow-up after sertraline dose increase 5 weeks ago. Reports persistent emotional blunting/anhedonia — describes feeling 'flat' and numb, with loss of interest in previously enjoyed social activities and frequent cancellations of plans. Hypersomnia: sleeping 12 hours, wakes at 9 AM with difficulty. Decreased appetite with approximately 8 lbs weight loss since January. Reports passive suicidal ideation — thoughts that 'it would be easier if she wasn't here' without active plan or intent; denies active suicidal ideation or plan. Feels safe. Has social support from roommate. Anxiety improved; using lorazepam 0.5 mg twice this month. Side effects from sertraline: initial nausea (resolved), ongoing sexual side effects. Stopped therapy approximately 6 months ago.\", \"objective\": \"Vitals: BP 108/68 mmHg, HR 76 bpm, weight 127 lbs (down 8 lbs from January). PHQ-9: 17 (up from 15 last month). GAD-7: 9.\", \"assessment\": \"1. Major depressive disorder — worsening, PHQ-9 17, with passive suicidal ideation (no plan, no intent). Inadequate response to sertraline 100 mg after 5 weeks at current dose. 2. Generalized anxiety disorder — improved, GAD-7 9.\", \"plan\": \"1. Increase sertraline from 100 mg to 150 mg once daily. 2. Add bupropion XL 150 mg once daily in the morning to augment sertraline and address energy, motivation, and sexual side effects. 3. Continue lorazepam 0.5 mg as needed, limit to maximum 3 times per week. 4. Refer to psychotherapy (patient agreeable). 5. Follow up in 2 weeks rather than 1 month given passive SI. 6. Safety planning: call clinic if symptoms worsen; go to ER or call 988 if passive ideation becomes active.\", \"medications\": [\"Sertraline 150 mg oral once daily (increased from 100 mg)\", \"Bupropion XL 150 mg oral once daily in morning\", \"Lorazepam 0.5 mg oral as needed (max 3x/week)\"]}",
+    "parsed": {
+      "subjective": "Patient is a 29-year-old female with depression and anxiety presenting for psychiatric follow-up after sertraline dose increase 5 weeks ago. Reports persistent emotional blunting/anhedonia — describes feeling 'flat' and numb, with loss of interest in previously enjoyed social activities and frequent cancellations of plans. Hypersomnia: sleeping 12 hours, wakes at 9 AM with difficulty. Decreased appetite with approximately 8 lbs weight loss since January. Reports passive suicidal ideation — thoughts that 'it would be easier if she wasn't here' without active plan or intent; denies active suicidal ideation or plan. Feels safe. Has social support from roommate. Anxiety improved; using lorazepam 0.5 mg twice this month. Side effects from sertraline: initial nausea (resolved), ongoing sexual side effects. Stopped therapy approximately 6 months ago.",
+      "objective": "Vitals: BP 108/68 mmHg, HR 76 bpm, weight 127 lbs (down 8 lbs from January). PHQ-9: 17 (up from 15 last month). GAD-7: 9.",
+      "assessment": "1. Major depressive disorder — worsening, PHQ-9 17, with passive suicidal ideation (no plan, no intent). Inadequate response to sertraline 100 mg after 5 weeks at current dose. 2. Generalized anxiety disorder — improved, GAD-7 9.",
+      "plan": "1. Increase sertraline from 100 mg to 150 mg once daily. 2. Add bupropion XL 150 mg once daily in the morning to augment sertraline and address energy, motivation, and sexual side effects. 3. Continue lorazepam 0.5 mg as needed, limit to maximum 3 times per week. 4. Refer to psychotherapy (patient agreeable). 5. Follow up in 2 weeks rather than 1 month given passive SI. 6. Safety planning: call clinic if symptoms worsen; go to ER or call 988 if passive ideation becomes active.",
+      "medications": [
+        "Sertraline 150 mg oral once daily (increased from 100 mg)",
+        "Bupropion XL 150 mg oral once daily in morning",
+        "Lorazepam 0.5 mg oral as needed (max 3x/week)"
+      ]
+    },
+    "error": null
+  },
+  "validation": {
+    "valid": true,
+    "issues": []
+  },
+  "tester_notes": "Good overall. Sensitive clinical content (suicidal ideation) correctly captured with nuance. Safety plan included in the plan section. ISSUE: The dose change for sertraline (100→150 mg) is noted as '(increased from 100 mg)' in free text — this is important for medication reconciliation downstream but v1 prompt has no structured way to represent dose changes vs new starts. ISSUE: No structured 'reason_for_visit' or 'chief_complaint' field — the subjective section is long and unstructured in complex psych cases. Flag for v2."
+}

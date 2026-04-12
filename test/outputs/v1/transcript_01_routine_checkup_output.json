@@ -1,0 +1,25 @@
+{
+  "transcript_file": "transcript_01_routine_checkup.txt",
+  "prompt_version": "v1",
+  "model": "gpt-4o",
+  "timestamp": "2026-04-12T09:14:02",
+  "result": {
+    "raw_response": "{\"subjective\": \"Patient is a 52-year-old male presenting for annual wellness exam. Reports afternoon fatigue for approximately 2–3 months, occurring around 2–3 PM. No chest pain or shortness of breath. Sleeping approximately 7 hours per night; partner reports snoring. Notes unintentional weight loss of approximately 5 pounds over several months. Appetite intact.\", \"objective\": \"Vitals: BP 138/86 mmHg, HR 72 bpm (regular), Temp 98.4°F, O2 sat 98% on room air. Height 5'11\\\", weight 201 lbs, BMI 28. Lungs clear to auscultation bilaterally. Heart: regular rate and rhythm, no murmurs. Abdomen soft, non-tender. Labs: fasting glucose 112 mg/dL (elevated), total cholesterol 214 mg/dL, LDL 138 mg/dL, HDL 42 mg/dL, triglycerides 189 mg/dL, TSH 2.1 (WNL). CBC and CMP otherwise unremarkable.\", \"assessment\": \"1. Pre-diabetes (fasting glucose 112 mg/dL). 2. Borderline hyperlipidemia (LDL 138, low HDL 42, triglycerides 189). 3. Afternoon fatigue and unintentional weight loss — etiology unclear, requires monitoring.\", \"plan\": \"1. Start metformin 500 mg twice daily with meals for pre-diabetes management. 2. Start atorvastatin 20 mg once daily at bedtime for hyperlipidemia. 3. Dietary counseling: reduce refined carbohydrate intake; increase physical activity to at least 30 minutes of moderate exercise 5 days/week. 4. Refer to dietitian. 5. Recheck labs in 3 months. 6. Follow up in 3 months; return sooner if fatigue worsens or further unintentional weight loss occurs.\", \"medications\": [\"Metformin 500 mg oral twice daily with meals\", \"Atorvastatin 20 mg oral once daily at bedtime\"]}",
+    "parsed": {
+      "subjective": "Patient is a 52-year-old male presenting for annual wellness exam. Reports afternoon fatigue for approximately 2–3 months, occurring around 2–3 PM. No chest pain or shortness of breath. Sleeping approximately 7 hours per night; partner reports snoring. Notes unintentional weight loss of approximately 5 pounds over several months. Appetite intact.",
+      "objective": "Vitals: BP 138/86 mmHg, HR 72 bpm (regular), Temp 98.4°F, O2 sat 98% on room air. Height 5'11\", weight 201 lbs, BMI 28. Lungs clear to auscultation bilaterally. Heart: regular rate and rhythm, no murmurs. Abdomen soft, non-tender. Labs: fasting glucose 112 mg/dL (elevated), total cholesterol 214 mg/dL, LDL 138 mg/dL, HDL 42 mg/dL, triglycerides 189 mg/dL, TSH 2.1 (WNL). CBC and CMP otherwise unremarkable.",
+      "assessment": "1. Pre-diabetes (fasting glucose 112 mg/dL). 2. Borderline hyperlipidemia (LDL 138, low HDL 42, triglycerides 189). 3. Afternoon fatigue and unintentional weight loss — etiology unclear, requires monitoring.",
+      "plan": "1. Start metformin 500 mg twice daily with meals for pre-diabetes management. 2. Start atorvastatin 20 mg once daily at bedtime for hyperlipidemia. 3. Dietary counseling: reduce refined carbohydrate intake; increase physical activity to at least 30 minutes of moderate exercise 5 days/week. 4. Refer to dietitian. 5. Recheck labs in 3 months. 6. Follow up in 3 months; return sooner if fatigue worsens or further unintentional weight loss occurs.",
+      "medications": [
+        "Metformin 500 mg oral twice daily with meals",
+        "Atorvastatin 20 mg oral once daily at bedtime"
+      ]
+    },
+    "error": null
+  },
+  "validation": {
+    "valid": true,
+    "issues": []
+  },
+  "tester_notes": "Clean output. All four SOAP sections populated correctly. Medications correctly extracted with dose, route, frequency. Clinical language is professional. PASS."
+}

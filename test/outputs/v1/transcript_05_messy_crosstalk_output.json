@@ -1,0 +1,25 @@
+{
+  "transcript_file": "transcript_05_messy_crosstalk.txt",
+  "prompt_version": "v1",
+  "model": "gpt-4o",
+  "timestamp": "2026-04-12T09:19:22",
+  "result": {
+    "raw_response": "{\"subjective\": \"Patient is a 44-year-old male delivery driver presenting with lower back pain and right lower extremity radiculopathy for approximately 2–3 weeks. Pain is in the lumbar region, radiating down the right posterior leg with a shooting, electric quality. Severity: 7–8/10 in the morning, worsening with prolonged sitting (up to 10-hour shifts). Reports intermittent right leg weakness particularly when climbing stairs. Denies bowel or bladder changes. No trauma. Lifted a heavy object approximately one month prior. History of prior back issues in his thirties treated with physical therapy.\", \"objective\": \"Vitals: BP 124/78 mmHg, HR 74 bpm, weight 194 lbs. Lumbar flexion limited to 40 degrees with pain. Straight leg raise positive at 45 degrees right. Motor strength 4/5 right EHL and right dorsiflexion. Sensation mildly reduced in right L5 dermatomal distribution. Reflexes: patellar and Achilles 2+ bilaterally, symmetric.\", \"assessment\": \"L4-L5 disc herniation with right-sided L5 radiculopathy — supported by positive SLR, dermatomal sensory deficit, and motor weakness in L5 distribution.\", \"plan\": \"1. Order MRI lumbar spine. 2. Start naproxen 500 mg twice daily with food. 3. Start cyclobenzaprine 5 mg at bedtime (advise patient not to drive while taking). 4. Refer to physical therapy. 5. Consider epidural steroid injection if MRI confirms significant nerve compression and PT fails after 4–6 weeks. 6. Emergency precautions: go to ER immediately if sudden weakness, loss of bladder or bowel control develops. 7. Follow up in 2 weeks.\", \"medications\": [\"Naproxen 500 mg oral twice daily with food\", \"Cyclobenzaprine 5 mg oral once daily at bedtime\"]}",
+    "parsed": {
+      "subjective": "Patient is a 44-year-old male delivery driver presenting with lower back pain and right lower extremity radiculopathy for approximately 2–3 weeks. Pain is in the lumbar region, radiating down the right posterior leg with a shooting, electric quality. Severity: 7–8/10 in the morning, worsening with prolonged sitting (up to 10-hour shifts). Reports intermittent right leg weakness particularly when climbing stairs. Denies bowel or bladder changes. No trauma. Lifted a heavy object approximately one month prior. History of prior back issues in his thirties treated with physical therapy.",
+      "objective": "Vitals: BP 124/78 mmHg, HR 74 bpm, weight 194 lbs. Lumbar flexion limited to 40 degrees with pain. Straight leg raise positive at 45 degrees right. Motor strength 4/5 right EHL and right dorsiflexion. Sensation mildly reduced in right L5 dermatomal distribution. Reflexes: patellar and Achilles 2+ bilaterally, symmetric.",
+      "assessment": "L4-L5 disc herniation with right-sided L5 radiculopathy — supported by positive SLR, dermatomal sensory deficit, and motor weakness in L5 distribution.",
+      "plan": "1. Order MRI lumbar spine. 2. Start naproxen 500 mg twice daily with food. 3. Start cyclobenzaprine 5 mg at bedtime (advise patient not to drive while taking). 4. Refer to physical therapy. 5. Consider epidural steroid injection if MRI confirms significant nerve compression and PT fails after 4–6 weeks. 6. Emergency precautions: go to ER immediately if sudden weakness, loss of bladder or bowel control develops. 7. Follow up in 2 weeks.",
+      "medications": [
+        "Naproxen 500 mg oral twice daily with food",
+        "Cyclobenzaprine 5 mg oral once daily at bedtime"
+      ]
+    },
+    "error": null
+  },
+  "validation": {
+    "valid": true,
+    "issues": []
+  },
+  "tester_notes": "Excellent performance on messy transcript. Filler words (uh, um, like, you know) correctly stripped. Incomplete sentences correctly completed from context. Crosstalk resolved intelligently. Occupation correctly captured as clinically relevant context. PASS — this is the key robustness test and it holds up well."
+}

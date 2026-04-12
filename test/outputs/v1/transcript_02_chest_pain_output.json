@@ -1,0 +1,27 @@
+{
+  "transcript_file": "transcript_02_chest_pain.txt",
+  "prompt_version": "v1",
+  "model": "gpt-4o",
+  "timestamp": "2026-04-12T09:15:18",
+  "result": {
+    "raw_response": "{\"subjective\": \"Patient is a 61-year-old female presenting with midsternal chest pain since the previous evening, initially rated 8/10, now 6/10. Pain radiates to the jaw and left arm (described as heaviness). Associated symptoms include mild shortness of breath, nausea (previous evening), and diaphoresis upon waking. Relevant history: hypertension (on lisinopril), maternal history of MI at age 65, 20 pack-year smoking history (quit 8 years ago). No diabetes.\", \"objective\": \"Vitals: BP 158/94 mmHg (right arm), HR 96 bpm (regular), RR 18, O2 sat 95% on room air. General: anxious and diaphoretic. JVP not elevated. Cardiovascular: regular rate and rhythm, no murmurs, rubs, or gallops. Pulmonary: mild bibasilar crackles. Extremities: no edema. EKG: ST-segment depression in leads V4–V6. Troponin I: 0.08 (elevated). BNP: 320.\", \"assessment\": \"Acute coronary syndrome (NSTEMI or unstable angina) — ST-segment depression V4–V6, elevated troponin, and clinical presentation consistent with ACS. Risk factors include hypertension, ex-smoking, and family history of MI.\", \"plan\": \"1. Administer aspirin 325 mg PO (chew immediately). 2. Initiate IV heparin anticoagulation. 3. Administer nitroglycerin sublingual for chest pain. 4. Urgent cardiology consultation. 5. Hospital admission for further workup and management.\", \"medications\": [\"Aspirin 325 mg oral once (chew immediately)\", \"Heparin IV (dose per protocol)\", \"Nitroglycerin sublingual PRN chest pain\", \"Lisinopril (existing, dose not specified)\"]}",
+    "parsed": {
+      "subjective": "Patient is a 61-year-old female presenting with midsternal chest pain since the previous evening, initially rated 8/10, now 6/10. Pain radiates to the jaw and left arm (described as heaviness). Associated symptoms include mild shortness of breath, nausea (previous evening), and diaphoresis upon waking. Relevant history: hypertension (on lisinopril), maternal history of MI at age 65, 20 pack-year smoking history (quit 8 years ago). No diabetes.",
+      "objective": "Vitals: BP 158/94 mmHg (right arm), HR 96 bpm (regular), RR 18, O2 sat 95% on room air. General: anxious and diaphoretic. JVP not elevated. Cardiovascular: regular rate and rhythm, no murmurs, rubs, or gallops. Pulmonary: mild bibasilar crackles. Extremities: no edema. EKG: ST-segment depression in leads V4–V6. Troponin I: 0.08 (elevated). BNP: 320.",
+      "assessment": "Acute coronary syndrome (NSTEMI or unstable angina) — ST-segment depression V4–V6, elevated troponin, and clinical presentation consistent with ACS. Risk factors include hypertension, ex-smoking, and family history of MI.",
+      "plan": "1. Administer aspirin 325 mg PO (chew immediately). 2. Initiate IV heparin anticoagulation. 3. Administer nitroglycerin sublingual for chest pain. 4. Urgent cardiology consultation. 5. Hospital admission for further workup and management.",
+      "medications": [
+        "Aspirin 325 mg oral once (chew immediately)",
+        "Heparin IV (dose per protocol)",
+        "Nitroglycerin sublingual PRN chest pain",
+        "Lisinopril (existing, dose not specified)"
+      ]
+    },
+    "error": null
+  },
+  "validation": {
+    "valid": true,
+    "issues": []
+  },
+  "tester_notes": "Good output overall. ISSUE: Lisinopril was listed as an existing medication mentioned in passing, not a new prescription — this creates ambiguity in the medications array. The prompt does not distinguish between 'newly prescribed' vs 'current/existing' medications. This needs to be fixed in v2."
+}

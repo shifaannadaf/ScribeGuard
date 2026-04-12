@@ -1,0 +1,27 @@
+{
+  "transcript_file": "transcript_03_diabetes_followup.txt",
+  "prompt_version": "v1",
+  "model": "gpt-4o",
+  "timestamp": "2026-04-12T09:16:44",
+  "result": {
+    "raw_response": "{\"subjective\": \"Patient is a 67-year-old male with a 12-year history of Type 2 diabetes presenting for follow-up. Reports fasting morning glucose readings of 180–190 mg/dL. Not consistently checking postprandial glucose. Dietary history includes toast, peanut butter, and orange juice in the morning. Taking metformin 1000 mg twice daily consistently; missing glipizide approximately once weekly. Reports 1–2 hypoglycemic episodes, including one significant episode two weeks ago after skipping lunch. Denies chest pain or vision changes. Reports bilateral foot tingling, worse on the right, predominantly at night.\", \"objective\": \"Vitals: BP 142/88 mmHg, HR 68 bpm, weight 218 lbs (up 4 lbs from January). HbA1c: 8.4% (up from 7.9% in January). Fasting glucose: 176 mg/dL. Renal function: creatinine 1.1 mg/dL, eGFR 72 mL/min/1.73m² (stable). Urine microalbumin: 42 (borderline elevated). Foot exam: reduced monofilament sensation plantar aspect right foot; no ulcers or lesions.\", \"assessment\": \"1. Type 2 diabetes mellitus — suboptimal control, HbA1c worsening from 7.9% to 8.4%. 2. Early diabetic peripheral neuropathy — reduced sensation right plantar surface. 3. Borderline microalbuminuria — early diabetic nephropathy cannot be excluded.\", \"plan\": \"1. Add empagliflozin 10 mg once daily for glycemic control and renal protection. 2. Continue metformin 1000 mg twice daily. 3. Continue glipizide 5 mg twice daily — emphasize medication adherence. 4. Start gabapentin 300 mg at bedtime for peripheral neuropathy. 5. Eliminate orange juice; reduce white bread intake. 6. Check postprandial glucose 2 hours after meals in addition to fasting. 7. Refer to diabetes education program for dietary counseling. 8. Follow up in 8 weeks.\", \"medications\": [\"Empagliflozin 10 mg oral once daily\", \"Metformin 1000 mg oral twice daily (continued)\", \"Glipizide 5 mg oral twice daily (continued)\", \"Gabapentin 300 mg oral once daily at bedtime\"]}",
+    "parsed": {
+      "subjective": "Patient is a 67-year-old male with a 12-year history of Type 2 diabetes presenting for follow-up. Reports fasting morning glucose readings of 180–190 mg/dL. Not consistently checking postprandial glucose. Dietary history includes toast, peanut butter, and orange juice in the morning. Taking metformin 1000 mg twice daily consistently; missing glipizide approximately once weekly. Reports 1–2 hypoglycemic episodes, including one significant episode two weeks ago after skipping lunch. Denies chest pain or vision changes. Reports bilateral foot tingling, worse on the right, predominantly at night.",
+      "objective": "Vitals: BP 142/88 mmHg, HR 68 bpm, weight 218 lbs (up 4 lbs from January). HbA1c: 8.4% (up from 7.9% in January). Fasting glucose: 176 mg/dL. Renal function: creatinine 1.1 mg/dL, eGFR 72 mL/min/1.73m² (stable). Urine microalbumin: 42 (borderline elevated). Foot exam: reduced monofilament sensation plantar aspect right foot; no ulcers or lesions.",
+      "assessment": "1. Type 2 diabetes mellitus — suboptimal control, HbA1c worsening from 7.9% to 8.4%. 2. Early diabetic peripheral neuropathy — reduced sensation right plantar surface. 3. Borderline microalbuminuria — early diabetic nephropathy cannot be excluded.",
+      "plan": "1. Add empagliflozin 10 mg once daily for glycemic control and renal protection. 2. Continue metformin 1000 mg twice daily. 3. Continue glipizide 5 mg twice daily — emphasize medication adherence. 4. Start gabapentin 300 mg at bedtime for peripheral neuropathy. 5. Eliminate orange juice; reduce white bread intake. 6. Check postprandial glucose 2 hours after meals in addition to fasting. 7. Refer to diabetes education program for dietary counseling. 8. Follow up in 8 weeks.",
+      "medications": [
+        "Empagliflozin 10 mg oral once daily",
+        "Metformin 1000 mg oral twice daily (continued)",
+        "Glipizide 5 mg oral twice daily (continued)",
+        "Gabapentin 300 mg oral once daily at bedtime"
+      ]
+    },
+    "error": null
+  },
+  "validation": {
+    "valid": true,
+    "issues": []
+  },
+  "tester_notes": "Strong output. Complex case with multiple medications handled well. ISSUE: 'continued' label in medication entries is inconsistent — sometimes present, sometimes not. The medications array mixes new prescriptions and continued existing ones without a clear structural distinction. Downstream medication extraction logic needs to know which is new. Flag for v2."
+}
