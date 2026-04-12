@@ -4,7 +4,7 @@ This folder contains the PostgreSQL schema and SQLAlchemy models for the SOAP No
 
 ---
 
-## 📁 Files
+##  Files
 
 | File | Description |
 |------|-------------|
@@ -14,7 +14,7 @@ This folder contains the PostgreSQL schema and SQLAlchemy models for the SOAP No
 
 ---
 
-## 🗄️ Tables
+##  Tables
 
 | Table | Purpose |
 |-------|---------|
@@ -25,7 +25,7 @@ This folder contains the PostgreSQL schema and SQLAlchemy models for the SOAP No
 
 ---
 
-## ⚙️ Prerequisites
+##  Prerequisites
 
 - Python 3.9+
 - PostgreSQL installed and running
@@ -37,7 +37,7 @@ pip install sqlalchemy psycopg2-binary
 
 ---
 
-## 🚀 Setup Instructions
+##  Setup Instructions
 
 ### 1. Create the PostgreSQL database
 
@@ -72,7 +72,7 @@ psql -U postgres -d soap_notes_db -f schema.sql
 
 ---
 
-## 🔗 How Shifaa (Backend) Uses This
+##  How Shifaa (Backend) Uses This
 
 In any FastAPI route, import `get_db` as a dependency:
 
@@ -93,7 +93,7 @@ async def transcribe(audio: UploadFile = File(...), db: Session = Depends(get_db
     return {"transcript": "...", "transcript_id": record.id}
 ```
 
-## 📁 Expected Project Structure
+##  Expected Project Structure
 
 ```
 project/
