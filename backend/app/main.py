@@ -2,7 +2,9 @@ from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from app.whisper_service import transcribe_audio
 from app.gpt_service import generate_soap_note
-
+from database import get_db, Transcript, GeneratedNote, AuditLog
+from sqlalchemy.orm import Session
+from fastapi import Depends
 app = FastAPI()
 
 app.add_middleware(
