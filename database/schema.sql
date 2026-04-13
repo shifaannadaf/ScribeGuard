@@ -1,6 +1,5 @@
 -- ============================================================
 -- SOAP Note Application - Database Schema
--- Sprint 1
 -- ============================================================
 
 -- 1. Transcripts: stores audio file info and raw transcript text
