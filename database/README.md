@@ -1,4 +1,4 @@
-# Database Setup — Sprint 1
+# Database Setup 
 
 This folder contains the PostgreSQL schema and SQLAlchemy models for the SOAP Note application.
 
@@ -72,7 +72,7 @@ psql -U postgres -d soap_notes_db -f schema.sql
 
 ---
 
-##  How Shifaa (Backend) Uses This
+##  How (Backend) Uses This
 
 In any FastAPI route, import `get_db` as a dependency:
 
