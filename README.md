@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # ScribeGuard
 
 AI-powered clinical documentation assistant. Records doctor-patient consultations, transcribes them with OpenAI Whisper, adds speaker labels, extracts structured SOAP notes with GPT-4, and allows review and push to OpenMRS.
@@ -191,6 +190,3 @@ scribeguard/
 │   └── package.json
 └── .gitignore
 ```
-=======
-# Radhika OpenMRS Setup Work
->>>>>>> origin/main
