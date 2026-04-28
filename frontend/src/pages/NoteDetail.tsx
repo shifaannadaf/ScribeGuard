@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, User, Calendar, Clock, Timer, Loader2, Check } from 'lucide-react'
+import { ArrowLeft, User, Calendar, Clock, Timer, Loader2, Check, FileText } from 'lucide-react'
 import { getEncounter, updateEncounter, type EncounterDetail, type Medication, type Allergy, type Diagnosis } from '../api/encounters'
-
 type Tab = 'transcription' | 'medications' | 'allergies' | 'diagnoses'
 
 const tabs: { id: Tab; label: string }[] = [
@@ -107,6 +106,13 @@ export default function NoteDetail() {
           <p className="text-gray-500 text-xs mt-0.5">{record.patient_id}</p>
         </div>
         <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${style}`}>{label}</span>
+        <button
+  onClick={() => window.open(`http://localhost:8000/encounters/${id}/export/pdf`)}
+  className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors duration-150 cursor-pointer"
+>
+  <FileText size={14} />
+  Export PDF
+</button>
         {readonly
           ? <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-gray-700 text-gray-400 border border-gray-600">View Only</span>
           : (

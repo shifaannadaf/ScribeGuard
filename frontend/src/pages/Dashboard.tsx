@@ -140,10 +140,20 @@ export default function Dashboard() {
                 <Mic size={36} className="text-blue-400 group-hover:text-blue-300 transition-colors duration-150" />
                 <span className="text-gray-400 group-hover:text-gray-200 text-xs transition-colors duration-150">Record</span>
               </button>
-              <button className="flex flex-col items-center gap-2 group cursor-pointer">
-                <Upload size={36} className="text-gray-500 group-hover:text-gray-300 transition-colors duration-150" />
-                <span className="text-gray-500 group-hover:text-gray-300 text-xs transition-colors duration-150">Import</span>
-              </button>
+              <label className="flex flex-col items-center gap-2 group cursor-pointer">
+  <Upload size={36} className="text-gray-500 group-hover:text-gray-300 transition-colors duration-150" />
+  <span className="text-gray-500 group-hover:text-gray-300 text-xs transition-colors duration-150">
+    Import
+  </span>
+
+  <input
+    type="file"
+    accept=".txt,.pdf,.doc,.docx,.mp3,.wav"
+    className="hidden"
+    onChange={(e) => console.log("File uploaded:", e.target.files?.[0])}
+  />
+</label>
+ 
             </div>
           )}
 
