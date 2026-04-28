@@ -153,8 +153,11 @@ export default function Dashboard() {
     onChange={(e) => console.log("File uploaded:", e.target.files?.[0])}
   />
 </label>
-              <button
-  onClick={() => console.log("Export clicked")}
+  <button
+    onClick={() => {
+    const encounterId = "1"
+    window.open(`http://localhost:8000/encounters/${encounterId}/export/pdf`);
+}}
   className="flex flex-col items-center gap-2 group cursor-pointer"
 >
   <FileText size={36} className="text-gray-500 group-hover:text-gray-300 transition-colors duration-150" />
