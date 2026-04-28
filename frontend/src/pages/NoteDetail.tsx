@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, User, Calendar, Clock, Timer, Loader2, Check, FileText } from 'lucide-react'import { getEncounter, updateEncounter, type EncounterDetail, type Medication, type Allergy, type Diagnosis } from '../api/encounters'
-
+import { ArrowLeft, User, Calendar, Clock, Timer, Loader2, Check, FileText } from 'lucide-react'
+import { getEncounter, updateEncounter, type EncounterDetail, type Medication, type Allergy, type Diagnosis } from '../api/encounters'
 type Tab = 'transcription' | 'medications' | 'allergies' | 'diagnoses'
 
 const tabs: { id: Tab; label: string }[] = [
