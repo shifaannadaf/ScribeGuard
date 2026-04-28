@@ -155,7 +155,7 @@ export default function Dashboard() {
 </label>
   <button
     onClick={() => {
-    const encounterId = "1"
+    const encounterId = "enc-00001";
     window.open(`http://localhost:8000/encounters/${encounterId}/export/pdf`);
 }}
   className="flex flex-col items-center gap-2 group cursor-pointer"
