@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FileText, Clock, CheckCircle2, Layers, Mic, Upload, Square, X, Loader2, Check } from 'lucide-react'
 import { getStats, createEncounter, transcribeAudio, generateNote, type Stats } from '../api/encounters'
+import './Dashboard.css'
 
 type RecordState = 'idle' | 'setup' | 'recording' | 'processing'
 type Step = { label: string; status: 'pending' | 'active' | 'done' }
@@ -104,113 +105,117 @@ export default function Dashboard() {
   }
 
   const cards = [
-    { label: 'Notes Today',       value: stats?.notes_today       ?? '—', icon: FileText,    color: 'text-blue-400',   bg: 'bg-blue-500/10'   },
-    { label: 'Pending Review',    value: stats?.pending_review    ?? '—', icon: Clock,       color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
-    { label: 'Pushed to OpenMRS', value: stats?.pushed_to_openmrs ?? '—', icon: CheckCircle2,color: 'text-green-400',  bg: 'bg-green-500/10'  },
-    { label: 'Total Transcripts', value: stats?.total_transcripts ?? '—', icon: Layers,      color: 'text-purple-400', bg: 'bg-purple-500/10' },
+    { label: 'Notes Today',       value: stats?.notes_today       ?? '—', icon: FileText,    colorClass: 'stat-blue'   },
+    { label: 'Pending Review',    value: stats?.pending_review    ?? '—', icon: Clock,       colorClass: 'stat-yellow' },
+    { label: 'Pushed to OpenMRS', value: stats?.pushed_to_openmrs ?? '—', icon: CheckCircle2,colorClass: 'stat-green'  },
+    { label: 'Total Transcripts', value: stats?.total_transcripts ?? '—', icon: Layers,      colorClass: 'stat-purple' },
   ]
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="dashboard-container">
 
-      <div className="p-8 pb-6 shrink-0">
-        <h1 className="text-white text-2xl font-semibold mb-1">Dashboard</h1>
-        <p className="text-gray-500 text-sm mb-6">Welcome back. Here's your activity at a glance.</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          {cards.map(({ label, value, icon: Icon, color, bg }) => (
-            <div key={label} className="bg-gray-900 border border-gray-800 rounded-xl p-5 flex items-center gap-4">
-              <div className={`${bg} rounded-lg p-3 shrink-0`}><Icon size={22} className={color} /></div>
+      <div className="page-header">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <h1 className="page-title">Dashboard</h1>
+            <p className="page-subtitle">Welcome back. Here's your activity at a glance.</p>
+          </div>
+          <button 
+            onClick={() => navigate('/notes/demo-123')} 
+            className="btn btn-primary"
+            style={{ background: 'var(--success)' }}
+          >
+            <FileText size={16} /> View Demo SOAP Encounter
+          </button>
+        </div>
+        <div className="dashboard-stats-grid" style={{ marginTop: '1.5rem' }}>
+          {cards.map(({ label, value, icon: Icon, colorClass }) => (
+            <div key={label} className={`glass-card stat-card ${colorClass}`}>
+              <div className="stat-icon-wrapper"><Icon size={22} /></div>
               <div>
-                <p className="text-gray-400 text-sm">{label}</p>
-                <p className="text-white text-2xl font-bold mt-0.5">{value}</p>
+                <p className="stat-label">{label}</p>
+                <p className="stat-value">{value}</p>
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="flex-1 mx-8 mb-8 bg-gray-900 border border-gray-800 rounded-xl flex flex-col overflow-hidden">
+      <div className="dashboard-main-area glass-panel">
 
         {/* Controls */}
-        <div className="flex flex-col items-center justify-center gap-4 py-8 border-b border-gray-800">
+        <div className="recording-controls">
 
           {recState === 'idle' && (
-            <div className="flex items-center gap-12">
-              <button onClick={() => setRecState('setup')} className="flex flex-col items-center gap-2 group cursor-pointer">
-                <Mic size={36} className="text-blue-400 group-hover:text-blue-300 transition-colors duration-150" />
-                <span className="text-gray-400 group-hover:text-gray-200 text-xs transition-colors duration-150">Record</span>
+            <div className="action-buttons-row">
+              <button onClick={() => setRecState('setup')} className="action-button primary">
+                <Mic size={36} className="icon" />
+                <span className="label">Record</span>
               </button>
-              <label className="flex flex-col items-center gap-2 group cursor-pointer">
-  <Upload size={36} className="text-gray-500 group-hover:text-gray-300 transition-colors duration-150" />
-  <span className="text-gray-500 group-hover:text-gray-300 text-xs transition-colors duration-150">
-    Import
-  </span>
-
-  <input
-    type="file"
-    accept=".txt,.pdf,.doc,.docx,.mp3,.wav"
-    className="hidden"
-    onChange={(e) => console.log("File uploaded:", e.target.files?.[0])}
-  />
-</label>
- 
+              <label className="action-button">
+                <Upload size={36} className="icon" />
+                <span className="label">Import</span>
+                <input
+                  type="file"
+                  accept=".txt,.pdf,.doc,.docx,.mp3,.wav"
+                  style={{ display: 'none' }}
+                  onChange={(e) => console.log("File uploaded:", e.target.files?.[0])}
+                />
+              </label>
             </div>
           )}
 
           {recState === 'setup' && (
-            <div className="w-full max-w-sm px-4 flex flex-col gap-4">
-              <div className="flex items-center justify-between">
-                <p className="text-white text-sm font-semibold">New Recording</p>
-                <button onClick={cancelSetup} className="text-gray-600 hover:text-white transition-colors cursor-pointer"><X size={16} /></button>
+            <div className="setup-panel">
+              <div className="setup-header">
+                <span className="setup-title">New Recording</span>
+                <button onClick={cancelSetup} className="icon-button"><X size={16} /></button>
               </div>
-              <div className="flex flex-col gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-gray-500 text-xs uppercase tracking-wider">Patient Name</label>
-                  <input type="text" value={patientName} onChange={e => setPatientName(e.target.value)}
-                    placeholder="e.g. John Doe" autoFocus
-                    className="bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-600 text-sm rounded-lg px-3 py-2.5 outline-none focus:border-blue-600 transition-colors duration-150" />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-gray-500 text-xs uppercase tracking-wider">Patient ID</label>
-                  <input type="text" value={patientId} onChange={e => setPatientId(e.target.value)}
-                    placeholder="e.g. P-00123"
-                    onKeyDown={e => e.key === 'Enter' && startRecording()}
-                    className="bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-600 text-sm rounded-lg px-3 py-2.5 outline-none focus:border-blue-600 transition-colors duration-150" />
-                </div>
+              <div className="form-group">
+                <label className="input-label">Patient Name</label>
+                <input type="text" value={patientName} onChange={e => setPatientName(e.target.value)}
+                  placeholder="e.g. John Doe" autoFocus
+                  className="input-field" />
               </div>
-              {error && <p className="text-red-400 text-xs">{error}</p>}
+              <div className="form-group">
+                <label className="input-label">Patient ID</label>
+                <input type="text" value={patientId} onChange={e => setPatientId(e.target.value)}
+                  placeholder="e.g. P-00123"
+                  onKeyDown={e => e.key === 'Enter' && startRecording()}
+                  className="input-field" />
+              </div>
+              {error && <p className="error-text">{error}</p>}
               <button onClick={startRecording} disabled={!patientName.trim() || !patientId.trim()}
-                className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors duration-150 cursor-pointer">
+                className="btn btn-danger" style={{ marginTop: '0.5rem' }}>
                 <Mic size={15} /> Start Recording
               </button>
             </div>
           )}
 
           {recState === 'recording' && (
-            <div className="flex flex-col items-center gap-3">
-              <div className="flex items-center gap-3">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-                <span className="text-white font-mono text-lg font-semibold">{fmtTime(elapsed)}</span>
-                <span className="text-gray-500 text-sm">Recording…</span>
+            <div className="recording-active-panel">
+              <div className="timer-display">
+                <div className="recording-dot" />
+                <span className="timer-text">{fmtTime(elapsed)}</span>
+                <span className="recording-status">Recording…</span>
               </div>
-              <p className="text-gray-600 text-xs">{patientName} · {patientId}</p>
-              <button onClick={stopRecording}
-                className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors duration-150 cursor-pointer mt-1">
-                <Square size={14} className="fill-current" /> Stop Recording
+              <p className="patient-info">{patientName} · {patientId}</p>
+              <button onClick={stopRecording} className="btn btn-secondary">
+                <Square size={14} style={{ fill: 'currentColor' }} /> Stop Recording
               </button>
             </div>
           )}
 
           {recState === 'processing' && (
-            <div className="flex flex-col gap-3 w-64">
+            <div className="processing-panel">
               {steps.map((step, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <div className="w-5 h-5 shrink-0 flex items-center justify-center">
-                    {step.status === 'done'    && <Check size={16} className="text-green-400" />}
-                    {step.status === 'active'  && <Loader2 size={16} className="text-blue-400 animate-spin" />}
-                    {step.status === 'pending' && <div className="w-1.5 h-1.5 rounded-full bg-gray-700" />}
+                <div key={i} className="processing-step">
+                  <div className="step-icon-container">
+                    {step.status === 'done'    && <Check size={16} className="step-done" />}
+                    {step.status === 'active'  && <Loader2 size={16} className="step-active" />}
+                    {step.status === 'pending' && <div className="step-pending-dot" />}
                   </div>
-                  <span className={`text-sm ${step.status === 'active' ? 'text-white' : step.status === 'done' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  <span className={`step-label ${step.status}`}>
                     {step.label}
                   </span>
                 </div>
@@ -221,37 +226,37 @@ export default function Dashboard() {
         </div>
 
         {/* Preview panel */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="flex items-center gap-2 mb-5">
-            <span className={`w-2 h-2 rounded-full ${recState === 'recording' ? 'bg-red-500 animate-pulse' : 'bg-gray-700'}`} />
-            <span className="text-gray-400 text-xs uppercase tracking-widest">
+        <div className="preview-panel">
+          <div className="preview-header">
+            <span className="recording-dot" style={{ animation: recState === 'recording' ? 'pulse-glow 2s infinite' : 'none', background: recState === 'recording' ? 'var(--danger)' : 'var(--bg-surface-elevated)', boxShadow: 'none' }} />
+            <span className="preview-title">
               {recState === 'recording' ? 'Recording in progress' : 'Transcription Preview'}
             </span>
           </div>
 
           {recState === 'recording' ? (
-            <div className="flex flex-col items-center justify-center h-32 gap-3">
-              <div className="flex items-end gap-1 h-8">
+            <div className="waveform-container">
+              <div className="waveform">
                 {[3,5,8,5,9,4,7,5,3,6,8,4].map((h, i) => (
-                  <div key={i} className="w-1 bg-blue-500/60 rounded-full animate-pulse"
-                    style={{ height: `${h * 4}px`, animationDelay: `${i * 80}ms` }} />
+                  <div key={i} className="waveform-bar"
+                    style={{ height: `${h * 10}%`, animationDelay: `${i * 80}ms` }} />
                 ))}
               </div>
-              <p className="text-gray-500 text-xs">Transcript will appear after processing</p>
+              <p className="patient-info">Transcript will appear after processing</p>
             </div>
           ) : (
-            <div className="flex flex-col gap-4">
+            <div className="preview-transcript">
               {PREVIEW_LINES.map(({ speaker, text }, i) => (
-                <div key={i} className="flex gap-3">
-                  <span className={`text-xs font-semibold w-14 shrink-0 pt-0.5 ${speaker === 'Doctor' ? 'text-blue-400' : 'text-gray-500'}`}>
+                <div key={i} className="transcript-line">
+                  <span className={`transcript-speaker ${speaker === 'Doctor' ? 'speaker-doctor' : 'speaker-patient'}`}>
                     {speaker}
                   </span>
-                  <p className="text-gray-300 text-sm leading-relaxed">{text}</p>
+                  <p className="transcript-text">{text}</p>
                 </div>
               ))}
-              <div className="flex gap-3">
-                <span className="text-xs font-semibold w-14 shrink-0 pt-0.5 text-blue-400">Doctor</span>
-                <p className="text-gray-500 text-sm italic">Listening<span className="animate-pulse">...</span></p>
+              <div className="transcript-line">
+                <span className="transcript-speaker speaker-doctor">Doctor</span>
+                <p className="transcript-text italic">Listening<span>...</span></p>
               </div>
             </div>
           )}

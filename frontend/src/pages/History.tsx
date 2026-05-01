@@ -6,22 +6,16 @@ import {
   listEncounters, approveEncounter, revertEncounter, pushToOpenMRS,
   type EncounterListItem, type EncounterStatus,
 } from '../api/encounters'
+import './History.css'
 
 type Filter = 'All Statuses' | 'Pending Review' | 'Approved' | 'In OpenMRS'
 
 const filters: Filter[] = ['All Statuses', 'Pending Review', 'Approved', 'In OpenMRS']
 
 const statusMap: Record<EncounterStatus, { label: string; style: string }> = {
-  pending:  { label: 'Pending Review', style: 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' },
-  approved: { label: 'Approved',       style: 'bg-green-500/10 text-green-400 border border-green-500/20' },
-  pushed:   { label: 'In OpenMRS',     style: 'bg-blue-500/10 text-blue-400 border border-blue-500/20' },
-}
-
-const filterActiveStyle: Record<Filter, string> = {
-  'All Statuses':  'bg-gray-700 text-white border-gray-600',
-  'Pending Review':'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
-  'Approved':      'bg-green-500/10 text-green-400 border-green-500/20',
-  'In OpenMRS':    'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  pending:  { label: 'Pending Review', style: 'status-pending' },
+  approved: { label: 'Approved',       style: 'status-approved' },
+  pushed:   { label: 'In OpenMRS',     style: 'status-pushed' },
 }
 
 const filterToStatus: Record<Filter, EncounterStatus | undefined> = {
@@ -33,12 +27,9 @@ const filterToStatus: Record<Filter, EncounterStatus | undefined> = {
 
 function Tooltip({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="relative group/tip">
+    <div className="tooltip-container">
       {children}
-      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-700 text-white text-xs rounded-md whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-10">
-        {label}
-        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-700" />
-      </div>
+      <div className="tooltip-text">{label}</div>
     </div>
   )
 }
@@ -47,21 +38,23 @@ function ConfirmModal({ record, onConfirm, onCancel }: {
   record: EncounterListItem; onConfirm: () => void; onCancel: () => void
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-sm mx-4 shadow-xl">
-        <div className="flex items-start justify-between mb-4">
-          <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center shrink-0">
-            <CheckCheck size={20} className="text-green-400" />
+    <div className="modal-overlay">
+      <div className="modal-content">
+        <div className="modal-header">
+          <div className="modal-icon-container green">
+            <CheckCheck size={20} />
           </div>
-          <button onClick={onCancel} className="text-gray-600 hover:text-white transition-colors cursor-pointer"><X size={18} /></button>
+          <button onClick={onCancel} className="icon-button"><X size={18} /></button>
         </div>
-        <h2 className="text-white text-base font-semibold mb-1">Approve Note</h2>
-        <p className="text-gray-400 text-sm mb-1">You are approving the note for <span className="text-white font-medium">{record.patient_name}</span>.</p>
-        <p className="text-gray-500 text-xs mb-6">{record.patient_id} · {record.date} · {record.time}</p>
-        <p className="text-gray-400 text-sm mb-6">This confirms you have reviewed the AI-generated content and it is clinically accurate.</p>
-        <div className="flex gap-3">
-          <button onClick={onCancel} className="flex-1 px-4 py-2.5 rounded-lg border border-gray-700 text-gray-400 hover:text-white hover:border-gray-600 text-sm font-medium transition-colors duration-150 cursor-pointer">Cancel</button>
-          <button onClick={onConfirm} className="flex-1 px-4 py-2.5 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-medium transition-colors duration-150 cursor-pointer">Approve</button>
+        <h2 className="modal-title">Approve Note</h2>
+        <div className="modal-body">
+          <p>You are approving the note for <span style={{ color: 'white', fontWeight: 500 }}>{record.patient_name}</span>.</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: '0.25rem 0 1rem' }}>{record.patient_id} · {record.date} · {record.time}</p>
+          <p>This confirms you have reviewed the AI-generated content and it is clinically accurate.</p>
+        </div>
+        <div className="modal-actions">
+          <button onClick={onCancel} className="btn btn-secondary">Cancel</button>
+          <button onClick={onConfirm} className="btn" style={{ background: 'var(--success)', color: 'white' }}>Approve</button>
         </div>
       </div>
     </div>
@@ -72,21 +65,23 @@ function RevertModal({ record, onConfirm, onCancel }: {
   record: EncounterListItem; onConfirm: () => void; onCancel: () => void
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-sm mx-4 shadow-xl">
-        <div className="flex items-start justify-between mb-4">
-          <div className="w-10 h-10 rounded-full bg-yellow-500/10 flex items-center justify-center shrink-0">
-            <RotateCcw size={20} className="text-yellow-400" />
+    <div className="modal-overlay">
+      <div className="modal-content">
+        <div className="modal-header">
+          <div className="modal-icon-container yellow">
+            <RotateCcw size={20} />
           </div>
-          <button onClick={onCancel} className="text-gray-600 hover:text-white transition-colors cursor-pointer"><X size={18} /></button>
+          <button onClick={onCancel} className="icon-button"><X size={18} /></button>
         </div>
-        <h2 className="text-white text-base font-semibold mb-1">Revert Approval</h2>
-        <p className="text-gray-400 text-sm mb-1">You are reverting the approval for <span className="text-white font-medium">{record.patient_name}</span>.</p>
-        <p className="text-gray-500 text-xs mb-6">{record.patient_id} · {record.date} · {record.time}</p>
-        <p className="text-gray-400 text-sm mb-6">This will move the note back to <span className="text-yellow-400 font-medium">Pending Review</span>.</p>
-        <div className="flex gap-3">
-          <button onClick={onCancel} className="flex-1 px-4 py-2.5 rounded-lg border border-gray-700 text-gray-400 hover:text-white hover:border-gray-600 text-sm font-medium transition-colors duration-150 cursor-pointer">Cancel</button>
-          <button onClick={onConfirm} className="flex-1 px-4 py-2.5 rounded-lg bg-yellow-600 hover:bg-yellow-500 text-white text-sm font-medium transition-colors duration-150 cursor-pointer">Revert</button>
+        <h2 className="modal-title">Revert Approval</h2>
+        <div className="modal-body">
+          <p>You are reverting the approval for <span style={{ color: 'white', fontWeight: 500 }}>{record.patient_name}</span>.</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: '0.25rem 0 1rem' }}>{record.patient_id} · {record.date} · {record.time}</p>
+          <p>This will move the note back to <span style={{ color: 'var(--warning)', fontWeight: 500 }}>Pending Review</span>.</p>
+        </div>
+        <div className="modal-actions">
+          <button onClick={onCancel} className="btn btn-secondary">Cancel</button>
+          <button onClick={onConfirm} className="btn" style={{ background: 'var(--warning)', color: 'white' }}>Revert</button>
         </div>
       </div>
     </div>
@@ -98,28 +93,31 @@ function PushModal({ record, onConfirm, onCancel }: {
 }) {
   const [uuid, setUuid] = useState('')
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-sm mx-4 shadow-xl">
-        <div className="flex items-start justify-between mb-4">
-          <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
-            <Upload size={20} className="text-blue-400" />
+    <div className="modal-overlay">
+      <div className="modal-content">
+        <div className="modal-header">
+          <div className="modal-icon-container blue">
+            <Upload size={20} />
           </div>
-          <button onClick={onCancel} className="text-gray-600 hover:text-white transition-colors cursor-pointer"><X size={18} /></button>
+          <button onClick={onCancel} className="icon-button"><X size={18} /></button>
         </div>
-        <h2 className="text-white text-base font-semibold mb-1">Push to OpenMRS</h2>
-        <p className="text-gray-400 text-sm mb-1">Pushing note for <span className="text-white font-medium">{record.patient_name}</span>.</p>
-        <p className="text-gray-500 text-xs mb-5">{record.patient_id} · {record.date} · {record.time}</p>
-        <label className="text-gray-500 text-xs font-medium uppercase tracking-wider block mb-1.5">OpenMRS Patient UUID</label>
-        <input
-          type="text"
-          value={uuid}
-          onChange={e => setUuid(e.target.value)}
-          placeholder="e.g. b80b4ed7-da9c-4b2f-a0b4-…"
-          className="w-full bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-600 text-sm rounded-lg px-3 py-2.5 outline-none focus:border-blue-600 transition-colors duration-150 mb-6"
-        />
-        <div className="flex gap-3">
-          <button onClick={onCancel} className="flex-1 px-4 py-2.5 rounded-lg border border-gray-700 text-gray-400 hover:text-white hover:border-gray-600 text-sm font-medium transition-colors duration-150 cursor-pointer">Cancel</button>
-          <button onClick={() => uuid.trim() && onConfirm(uuid.trim())} disabled={!uuid.trim()} className="flex-1 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors duration-150 cursor-pointer">Push</button>
+        <h2 className="modal-title">Push to OpenMRS</h2>
+        <div className="modal-body">
+          <p>Pushing note for <span style={{ color: 'white', fontWeight: 500 }}>{record.patient_name}</span>.</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: '0.25rem 0 1rem' }}>{record.patient_id} · {record.date} · {record.time}</p>
+          <label className="input-label">OpenMRS Patient UUID</label>
+          <input
+            type="text"
+            value={uuid}
+            onChange={e => setUuid(e.target.value)}
+            placeholder="e.g. b80b4ed7-da9c-4b2f-a0b4-…"
+            className="input-field"
+            style={{ marginBottom: '1rem' }}
+          />
+        </div>
+        <div className="modal-actions">
+          <button onClick={onCancel} className="btn btn-secondary">Cancel</button>
+          <button onClick={() => uuid.trim() && onConfirm(uuid.trim())} disabled={!uuid.trim()} className="btn btn-primary">Push</button>
         </div>
       </div>
     </div>
@@ -174,29 +172,27 @@ export default function History() {
   }
 
   return (
-    <div className="p-8">
-      <h1 className="text-white text-2xl font-semibold mb-1">History</h1>
-      <p className="text-gray-500 text-sm mb-6">All patient encounter transcriptions.</p>
+    <div className="history-container">
+      <h1 className="history-title">History</h1>
+      <p className="history-subtitle">All patient encounter transcriptions.</p>
 
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        <div className="relative flex-1 max-w-md">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+      <div className="history-controls">
+        <div className="search-wrapper">
+          <Search size={16} className="search-icon" />
           <input
             type="text"
             placeholder="Search by patient name or ID..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full bg-gray-900 border border-gray-800 text-gray-200 placeholder-gray-600 text-sm rounded-lg pl-9 pr-4 py-2.5 outline-none focus:border-blue-600 transition-colors duration-150"
+            className="search-input"
           />
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="filters-wrapper">
           {filters.map(f => (
             <button
               key={f}
               onClick={() => setActiveFilter(f)}
-              className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors duration-150 cursor-pointer ${
-                activeFilter === f ? filterActiveStyle[f] : 'bg-gray-900 text-gray-500 border-gray-800 hover:border-gray-600 hover:text-gray-300'
-              }`}
+              className={`filter-btn ${activeFilter === f ? `active-${f.split(' ')[0]}` : ''}`}
             >
               {f}
             </button>
@@ -205,67 +201,67 @@ export default function History() {
       </div>
 
       {loading && (
-        <div className="flex items-center justify-center mt-24 gap-2 text-gray-500">
-          <Loader2 size={18} className="animate-spin" />
-          <span className="text-sm">Loading encounters...</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '6rem', gap: '0.5rem', color: 'var(--text-muted)' }}>
+          <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} />
+          <span style={{ fontSize: '0.875rem' }}>Loading encounters...</span>
         </div>
       )}
 
-      {error && <p className="text-red-400 text-sm text-center mt-24">{error}</p>}
+      {error && <p style={{ color: 'var(--danger)', fontSize: '0.875rem', textAlign: 'center', marginTop: '6rem' }}>{error}</p>}
 
       {!loading && !error && (
-        <div className="flex flex-col gap-3">
+        <div className="history-list">
           {records.length === 0 && (
-            <p className="text-gray-600 text-sm text-center mt-24">No encounters match your search.</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', textAlign: 'center', marginTop: '6rem' }}>No encounters match your search.</p>
           )}
           {records.map(record => {
             const { label, style } = statusMap[record.status]
             const canApprove = record.status === 'pending'
             return (
-              <div key={record.id} className="bg-gray-900 border border-gray-800 rounded-xl px-5 py-4 flex items-center gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-1">
-                    <span className="text-white font-medium text-sm">{record.patient_name}</span>
-                    <span className="text-gray-600 text-xs">{record.patient_id}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${style}`}>{label}</span>
+              <div key={record.id} className="history-item">
+                <div className="history-item-info">
+                  <div className="history-item-header">
+                    <span className="history-item-name">{record.patient_name}</span>
+                    <span className="history-item-id">{record.patient_id}</span>
+                    <span className={`status-badge ${style}`}>{label}</span>
                   </div>
-                  <p className="text-gray-500 text-xs truncate mb-1">{record.snippet}</p>
-                  <div className="flex items-center gap-3 text-gray-600 text-xs">
+                  <p className="history-item-snippet">{record.snippet}</p>
+                  <div className="history-item-meta">
                     <span>{record.date}</span><span>·</span>
                     <span>{record.time}</span><span>·</span>
                     <span>{record.duration}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="history-item-actions">
                   <Tooltip label="Edit Note">
-                    <button onClick={() => navigate(`/notes/${record.id}`)} className="p-2 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition-colors duration-150 cursor-pointer">
+                    <button onClick={() => navigate(`/notes/${record.id}`)} className="icon-button">
                       <Pencil size={16} />
                     </button>
                   </Tooltip>
                   <Tooltip label="View Transcript">
-                    <button onClick={() => navigate(`/notes/${record.id}?mode=view`)} className="p-2 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition-colors duration-150 cursor-pointer">
+                    <button onClick={() => navigate(`/notes/${record.id}?mode=view`)} className="icon-button">
                       <Eye size={16} />
                     </button>
                   </Tooltip>
                   <Tooltip label="AI Assistant">
-                    <button onClick={() => navigate(`/notes/${record.id}/ai`)} className="p-2 text-gray-500 hover:text-blue-400 hover:bg-gray-800 rounded-lg transition-colors duration-150 cursor-pointer">
+                    <button onClick={() => navigate(`/notes/${record.id}/ai`)} className="icon-button">
                       <Bot size={16} />
                     </button>
                   </Tooltip>
                   <Tooltip label={canApprove ? 'Approve Note' : 'Already Approved'}>
-                    <button onClick={() => canApprove && setConfirmRecord(record)} className={`p-2 rounded-lg transition-colors duration-150 ${canApprove ? 'text-gray-500 hover:text-green-400 hover:bg-gray-800 cursor-pointer' : 'text-gray-700 cursor-not-allowed'}`}>
+                    <button onClick={() => canApprove && setConfirmRecord(record)} className="icon-button" style={{ color: canApprove ? 'inherit' : 'var(--text-muted)', cursor: canApprove ? 'pointer' : 'not-allowed' }}>
                       <CheckCheck size={16} />
                     </button>
                   </Tooltip>
                   {record.status === 'approved' && (
                     <Tooltip label="Revert Approval">
-                      <button onClick={() => setRevertRecord(record)} className="p-2 text-gray-500 hover:text-yellow-400 hover:bg-gray-800 rounded-lg transition-colors duration-150 cursor-pointer">
+                      <button onClick={() => setRevertRecord(record)} className="icon-button" style={{ color: 'var(--warning)' }}>
                         <RotateCcw size={16} />
                       </button>
                     </Tooltip>
                   )}
                   <Tooltip label="Push to OpenMRS">
-                    <button onClick={() => record.status === 'approved' && setPushRecord(record)} className={`p-2 rounded-lg transition-colors duration-150 ${record.status === 'approved' ? 'text-gray-500 hover:text-blue-400 hover:bg-gray-800 cursor-pointer' : 'text-gray-700 cursor-not-allowed'}`}>
+                    <button onClick={() => record.status === 'approved' && setPushRecord(record)} className="icon-button" style={{ color: record.status === 'approved' ? 'inherit' : 'var(--text-muted)', cursor: record.status === 'approved' ? 'pointer' : 'not-allowed' }}>
                       <Upload size={16} />
                     </button>
                   </Tooltip>
