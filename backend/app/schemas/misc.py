@@ -1,51 +1,6 @@
-from typing import Optional
-from pydantic import BaseModel
+"""DEPRECATED — use app.schemas.pipeline / .submission instead.
 
-
-class ChatMessage(BaseModel):
-    role:    str   # "user" | "assistant"
-    content: str
-
-
-class ChatRequest(BaseModel):
-    message: str
-    history: list[ChatMessage] = []
-
-
-class ChatResponse(BaseModel):
-    reply:      str
-    message_id: int
-
-
-class OpenMRSPatient(BaseModel):
-    uuid:                str
-    name:                str
-    identifier:          str
-    birthdate:           Optional[str] = None
-    gender:              Optional[str] = None
-    active_medications:  list = []
-    known_allergies:     list = []
-
-
-class PushRequest(BaseModel):
-    openmrs_patient_uuid: str
-
-
-class PushResponse(BaseModel):
-    id:           str
-    status:       str
-    openmrs_uuid: str
-    pushed_at:    str
-
-
-class TranscribeResponse(BaseModel):
-    id:         str
-    transcript: str
-    duration:   str
-
-
-class GenerateResponse(BaseModel):
-    id:          str
-    medications: list
-    allergies:   list
-    diagnoses:   list
+This module is preserved as a thin shim to avoid breaking any in-flight imports.
+"""
+from app.schemas.pipeline import TranscribeResponse, GenerateSoapResponse as GenerateResponse  # noqa: F401
+from app.schemas.submission import SubmitRequest as PushRequest, SubmitResponse as PushResponse  # noqa: F401

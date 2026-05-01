@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Clock, Moon, Sun } from 'lucide-react'
+import { LayoutDashboard, Clock, Moon, Sun, Activity } from 'lucide-react'
 import './Sidebar.css'
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/history', label: 'History', icon: Clock },
+  { to: '/history',   label: 'Encounters', icon: Clock },
 ]
 
 export default function Sidebar() {
@@ -14,11 +14,8 @@ export default function Sidebar() {
   })
 
   useEffect(() => {
-    if (theme === 'light') {
-      document.body.classList.add('light')
-    } else {
-      document.body.classList.remove('light')
-    }
+    if (theme === 'light') document.body.classList.add('light')
+    else                   document.body.classList.remove('light')
     localStorage.setItem('theme', theme)
   }, [theme])
 
@@ -26,7 +23,6 @@ export default function Sidebar() {
 
   return (
     <aside className="sidebar">
-
       <div className="sidebar-header">
         <div className="sidebar-logo-container">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -49,14 +45,19 @@ export default function Sidebar() {
             {label}
           </NavLink>
         ))}
+        <a
+          href="http://localhost:8000/docs"
+          target="_blank"
+          rel="noreferrer"
+          className="nav-link"
+        >
+          <Activity size={18} className="nav-icon" />
+          Agent API Docs
+        </a>
       </nav>
 
       <div style={{ marginTop: 'auto', padding: '1rem' }}>
-        <button
-          onClick={toggleTheme}
-          className="nav-link"
-          style={{ width: '100%', justifyContent: 'flex-start' }}
-        >
+        <button onClick={toggleTheme} className="nav-link" style={{ width: '100%', justifyContent: 'flex-start' }}>
           {theme === 'dark' ? (
             <><Sun size={18} className="nav-icon" /> Light Mode</>
           ) : (
@@ -64,7 +65,6 @@ export default function Sidebar() {
           )}
         </button>
       </div>
-
     </aside>
   )
 }

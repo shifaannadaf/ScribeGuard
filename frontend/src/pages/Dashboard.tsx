@@ -1,17 +1,23 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileText, Clock, CheckCircle2, Layers, Mic, Upload, Square, X, Loader2, Check } from 'lucide-react'
-import { getStats, createEncounter, transcribeAudio, generateNote, type Stats } from '../api/encounters'
+import {
+  FileText, Clock, CheckCircle2, Mic, Square, X, Loader2, Check,
+  Activity, ShieldAlert, AlertCircle,
+} from 'lucide-react'
+import {
+  createEncounter, getStats, intakeAudio, listRegisteredAgents,
+  type DashboardStats, type RegisteredAgent,
+} from '../api/encounters'
 import './Dashboard.css'
 
 type RecordState = 'idle' | 'setup' | 'recording' | 'processing'
-type Step = { label: string; status: 'pending' | 'active' | 'done' }
+type Step = { label: string; status: 'pending' | 'active' | 'done' | 'failed'; agent?: string }
 
-const PREVIEW_LINES = [
-  { speaker: 'Doctor',  text: 'How long have you been experiencing this pain?' },
-  { speaker: 'Patient', text: 'It started about three days ago, mostly in the lower back.' },
-  { speaker: 'Doctor',  text: 'Does it radiate down your leg at all?' },
-  { speaker: 'Patient', text: 'Sometimes, yes — on the right side.' },
+const PIPELINE_STEPS: { agent: string; label: string }[] = [
+  { agent: 'EncounterIntakeAgent',         label: 'Validating audio (Intake Agent)' },
+  { agent: 'TranscriptionAgent',           label: 'Transcribing (Transcription Agent)' },
+  { agent: 'ClinicalNoteGenerationAgent',  label: 'Drafting SOAP (Note Generation Agent)' },
+  { agent: 'MedicationExtractionAgent',    label: 'Extracting medications (Medication Agent)' },
 ]
 
 function fmtTime(s: number) {
@@ -20,20 +26,24 @@ function fmtTime(s: number) {
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const [stats, setStats]             = useState<Stats | null>(null)
+  const [stats, setStats]             = useState<DashboardStats | null>(null)
+  const [agents, setAgents]           = useState<RegisteredAgent[]>([])
   const [recState, setRecState]       = useState<RecordState>('idle')
   const [patientName, setPatientName] = useState('')
-  const [patientId,   setPatientId]   = useState('')
+  const [patientId, setPatientId]     = useState('')
+  const [openmrsUuid, setOpenmrsUuid] = useState('')
   const [elapsed, setElapsed]         = useState(0)
-  const [steps,   setSteps]           = useState<Step[]>([])
-  const [error,   setError]           = useState<string | null>(null)
+  const [steps, setSteps]             = useState<Step[]>([])
+  const [error, setError]             = useState<string | null>(null)
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef        = useRef<Blob[]>([])
   const timerRef         = useRef<ReturnType<typeof setInterval> | null>(null)
   const streamRef        = useRef<MediaStream | null>(null)
 
-  useEffect(() => { getStats().then(setStats).catch(() => {}) }, [])
+  const reload = () => getStats().then(setStats).catch(() => {})
+  useEffect(() => { reload() }, [])
+  useEffect(() => { listRegisteredAgents().then(r => setAgents(r.agents)).catch(() => {}) }, [])
 
   async function startRecording() {
     if (!patientName.trim() || !patientId.trim()) return
@@ -42,12 +52,10 @@ export default function Dashboard() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
       chunksRef.current = []
-
       const mr = new MediaRecorder(stream)
       mediaRecorderRef.current = mr
       mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data) }
       mr.start(250)
-
       setElapsed(0)
       timerRef.current = setInterval(() => setElapsed(s => s + 1), 1000)
       setRecState('recording')
@@ -56,40 +64,47 @@ export default function Dashboard() {
     }
   }
 
-  function updateStep(i: number, s: Step['status']) {
-    setSteps(prev => prev.map((step, idx) => idx === i ? { ...step, status: s } : step))
+  function setStep(agent: string, status: Step['status']) {
+    setSteps(prev => prev.map(s => s.agent === agent ? { ...s, status } : s))
   }
 
   async function stopRecording() {
     const mr = mediaRecorderRef.current
     if (!mr) return
-    timerRef.current && clearInterval(timerRef.current)
+    if (timerRef.current) clearInterval(timerRef.current)
     streamRef.current?.getTracks().forEach(t => t.stop())
 
-    setSteps([
-      { label: 'Creating encounter',   status: 'active'  },
-      { label: 'Transcribing audio',   status: 'pending' },
-      { label: 'Generating SOAP note', status: 'pending' },
-    ])
+    setSteps(PIPELINE_STEPS.map((s, i) => ({ label: s.label, agent: s.agent, status: i === 0 ? 'active' : 'pending' })))
     setRecState('processing')
 
     mr.onstop = async () => {
       try {
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
+        const enc = await createEncounter(patientName.trim(), patientId.trim(), openmrsUuid || undefined)
 
-        const enc = await createEncounter(patientName.trim(), patientId.trim())
-        updateStep(0, 'done'); updateStep(1, 'active')
+        const promise = intakeAudio(enc.id, blob, { autoRun: true })
 
-        await transcribeAudio(enc.id, blob)
-        updateStep(1, 'done'); updateStep(2, 'active')
+        // Visual progression heuristic until promise resolves
+        let i = 0
+        const tick = setInterval(() => {
+          i = Math.min(i + 1, PIPELINE_STEPS.length - 1)
+          PIPELINE_STEPS.forEach((s, idx) => setStep(s.agent, idx < i ? 'done' : idx === i ? 'active' : 'pending'))
+        }, 1100)
 
-        await generateNote(enc.id)
-        updateStep(2, 'done')
+        const result = await promise
+        clearInterval(tick)
 
-        getStats().then(setStats).catch(() => {})
-        setTimeout(() => navigate(`/notes/${enc.id}`), 600)
+        if ((result.errors || []).length > 0) {
+          PIPELINE_STEPS.forEach(s => setStep(s.agent, 'failed'))
+          setError(result.errors.join(' · '))
+          setRecState('idle')
+          return
+        }
+        PIPELINE_STEPS.forEach(s => setStep(s.agent, 'done'))
+        reload()
+        setTimeout(() => navigate(`/encounters/${enc.id}`), 500)
       } catch (e: any) {
-        setError(e.message ?? 'Something went wrong. Please try again.')
+        setError(e.message ?? 'Pipeline failed')
         setRecState('idle')
         setSteps([])
       }
@@ -99,8 +114,7 @@ export default function Dashboard() {
 
   function cancelSetup() {
     setRecState('idle')
-    setPatientName('')
-    setPatientId('')
+    setPatientName(''); setPatientId(''); setOpenmrsUuid('')
     setError(null)
   }
 
@@ -108,7 +122,7 @@ export default function Dashboard() {
     { label: 'Notes Today',       value: stats?.notes_today       ?? '—', icon: FileText,    colorClass: 'stat-blue'   },
     { label: 'Pending Review',    value: stats?.pending_review    ?? '—', icon: Clock,       colorClass: 'stat-yellow' },
     { label: 'Pushed to OpenMRS', value: stats?.pushed_to_openmrs ?? '—', icon: CheckCircle2,colorClass: 'stat-green'  },
-    { label: 'Total Transcripts', value: stats?.total_transcripts ?? '—', icon: Layers,      colorClass: 'stat-purple' },
+    { label: 'Failed',            value: stats?.failed            ?? '—', icon: ShieldAlert, colorClass: 'stat-purple' },
   ]
 
   return (
@@ -117,15 +131,11 @@ export default function Dashboard() {
       <div className="page-header">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <h1 className="page-title">Dashboard</h1>
-            <p className="page-subtitle">Welcome back. Here's your activity at a glance.</p>
+            <h1 className="page-title">Agentic Workspace</h1>
+            <p className="page-subtitle">Record an encounter — autonomous agents will produce a physician-reviewed SOAP note.</p>
           </div>
-          <button 
-            onClick={() => navigate('/notes/demo-123')} 
-            className="btn btn-primary"
-            style={{ background: 'var(--success)' }}
-          >
-            <FileText size={16} /> View Demo SOAP Encounter
+          <button onClick={() => navigate('/history')} className="btn btn-primary" style={{ background: 'var(--success)' }}>
+            <FileText size={16} /> Open Encounter History
           </button>
         </div>
         <div className="dashboard-stats-grid" style={{ marginTop: '1.5rem' }}>
@@ -142,47 +152,58 @@ export default function Dashboard() {
       </div>
 
       <div className="dashboard-main-area glass-panel">
-
-        {/* Controls */}
+        {/* Recording controls */}
         <div className="recording-controls">
-
           {recState === 'idle' && (
             <div className="action-buttons-row">
               <button onClick={() => setRecState('setup')} className="action-button primary">
                 <Mic size={36} className="icon" />
-                <span className="label">Record</span>
+                <span className="label">Record Encounter</span>
               </button>
-              <label className="action-button">
-                <Upload size={36} className="icon" />
-                <span className="label">Import</span>
-                <input
-                  type="file"
-                  accept=".txt,.pdf,.doc,.docx,.mp3,.wav"
-                  style={{ display: 'none' }}
-                  onChange={(e) => console.log("File uploaded:", e.target.files?.[0])}
-                />
-              </label>
+              <div style={{
+                padding: '1rem',
+                background: 'rgba(255,255,255,0.02)',
+                border: '1px solid var(--border-color, #2a2d3a)',
+                borderRadius: 12,
+                fontSize: 12,
+                color: 'var(--text-muted, #9ca3af)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+                width: 280,
+              }}>
+                <strong style={{ color: 'var(--text-strong, #e5e7eb)' }}>Active Agents</strong>
+                {agents.length === 0 ? (
+                  <span>Loading registry…</span>
+                ) : agents.map(a => (
+                  <span key={a.name} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Activity size={11} /> {a.name} <code style={{ opacity: 0.65 }}>v{a.version}</code>
+                  </span>
+                ))}
+              </div>
             </div>
           )}
 
           {recState === 'setup' && (
             <div className="setup-panel">
               <div className="setup-header">
-                <span className="setup-title">New Recording</span>
+                <span className="setup-title">New Encounter</span>
                 <button onClick={cancelSetup} className="icon-button"><X size={16} /></button>
               </div>
               <div className="form-group">
                 <label className="input-label">Patient Name</label>
                 <input type="text" value={patientName} onChange={e => setPatientName(e.target.value)}
-                  placeholder="e.g. John Doe" autoFocus
-                  className="input-field" />
+                  placeholder="e.g. John Doe" autoFocus className="input-field" />
               </div>
               <div className="form-group">
                 <label className="input-label">Patient ID</label>
                 <input type="text" value={patientId} onChange={e => setPatientId(e.target.value)}
-                  placeholder="e.g. P-00123"
-                  onKeyDown={e => e.key === 'Enter' && startRecording()}
-                  className="input-field" />
+                  placeholder="e.g. P-00123" className="input-field" />
+              </div>
+              <div className="form-group">
+                <label className="input-label">OpenMRS Patient UUID <span style={{ opacity: 0.6 }}>(optional)</span></label>
+                <input type="text" value={openmrsUuid} onChange={e => setOpenmrsUuid(e.target.value)}
+                  placeholder="auto-resolved if omitted" className="input-field" />
               </div>
               {error && <p className="error-text">{error}</p>}
               <button onClick={startRecording} disabled={!patientName.trim() || !patientId.trim()}
@@ -201,7 +222,7 @@ export default function Dashboard() {
               </div>
               <p className="patient-info">{patientName} · {patientId}</p>
               <button onClick={stopRecording} className="btn btn-secondary">
-                <Square size={14} style={{ fill: 'currentColor' }} /> Stop Recording
+                <Square size={14} style={{ fill: 'currentColor' }} /> Stop & Run Pipeline
               </button>
             </div>
           )}
@@ -211,57 +232,46 @@ export default function Dashboard() {
               {steps.map((step, i) => (
                 <div key={i} className="processing-step">
                   <div className="step-icon-container">
-                    {step.status === 'done'    && <Check size={16} className="step-done" />}
-                    {step.status === 'active'  && <Loader2 size={16} className="step-active" />}
+                    {step.status === 'done'   && <Check size={16} className="step-done" />}
+                    {step.status === 'active' && <Loader2 size={16} className="step-active" />}
+                    {step.status === 'failed' && <AlertCircle size={16} color="#ef4444" />}
                     {step.status === 'pending' && <div className="step-pending-dot" />}
                   </div>
-                  <span className={`step-label ${step.status}`}>
-                    {step.label}
-                  </span>
+                  <span className={`step-label ${step.status}`}>{step.label}</span>
                 </div>
               ))}
             </div>
           )}
-
         </div>
 
-        {/* Preview panel */}
+        {/* Agent overview */}
         <div className="preview-panel">
           <div className="preview-header">
-            <span className="recording-dot" style={{ animation: recState === 'recording' ? 'pulse-glow 2s infinite' : 'none', background: recState === 'recording' ? 'var(--danger)' : 'var(--bg-surface-elevated)', boxShadow: 'none' }} />
-            <span className="preview-title">
-              {recState === 'recording' ? 'Recording in progress' : 'Transcription Preview'}
-            </span>
+            <span className="recording-dot" style={{ background: 'var(--bg-surface-elevated)', boxShadow: 'none' }} />
+            <span className="preview-title">How ScribeGuard's agents collaborate</span>
           </div>
-
-          {recState === 'recording' ? (
-            <div className="waveform-container">
-              <div className="waveform">
-                {[3,5,8,5,9,4,7,5,3,6,8,4].map((h, i) => (
-                  <div key={i} className="waveform-bar"
-                    style={{ height: `${h * 10}%`, animationDelay: `${i * 80}ms` }} />
-                ))}
-              </div>
-              <p className="patient-info">Transcript will appear after processing</p>
-            </div>
-          ) : (
-            <div className="preview-transcript">
-              {PREVIEW_LINES.map(({ speaker, text }, i) => (
-                <div key={i} className="transcript-line">
-                  <span className={`transcript-speaker ${speaker === 'Doctor' ? 'speaker-doctor' : 'speaker-patient'}`}>
-                    {speaker}
-                  </span>
-                  <p className="transcript-text">{text}</p>
-                </div>
-              ))}
-              <div className="transcript-line">
-                <span className="transcript-speaker speaker-doctor">Doctor</span>
-                <p className="transcript-text italic">Listening<span>...</span></p>
-              </div>
-            </div>
-          )}
+          <div style={{
+            padding: 16, display: 'flex', flexDirection: 'column', gap: 10,
+            color: 'var(--text-strong, #e5e7eb)', fontSize: 13, lineHeight: 1.55,
+          }}>
+            <p>
+              When you click <strong>Stop</strong>, ScribeGuard runs an end-to-end agent pipeline on the server.
+              Each step is a focused, autonomous agent persisted as an audited <code>agent_run</code>:
+            </p>
+            <ol style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <li><strong>Encounter Intake Agent</strong> — validates &amp; stores audio</li>
+              <li><strong>Transcription Agent</strong> — Whisper + cleanup + quality flags</li>
+              <li><strong>Clinical Note Generation Agent</strong> — GPT-4 SOAP under engineered prompt</li>
+              <li><strong>Medication Extraction Agent</strong> — structured drugs from Plan</li>
+              <li><strong>Physician Review Agent</strong> — your edits + explicit approval</li>
+              <li><strong>OpenMRS Integration Agent</strong> — FHIR write-back &amp; verification</li>
+              <li><strong>Audit &amp; Traceability Agent</strong> — durable audit trail</li>
+            </ol>
+            <p style={{ color: '#9ca3af', fontSize: 12 }}>
+              No SOAP note is committed without your explicit approval.
+            </p>
+          </div>
         </div>
-
       </div>
     </div>
   )
