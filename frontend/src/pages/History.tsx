@@ -149,7 +149,12 @@ export default function History() {
               <span style={{ fontSize: 12, color: '#9ca3af' }}>{it.patient_id}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#9ca3af' }}>
-              <Clock size={12} /> {it.date} · {it.time}{it.duration ? ` · ${it.duration}` : ''}
+              <Clock size={12} /> {it.created_at
+                ? new Date(it.created_at).toLocaleDateString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit' })
+                  + ' · '
+                  + new Date(it.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+                : `${it.date} · ${it.time}`
+              }{it.duration ? ` · ${it.duration}` : ''}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
               <FileText size={12} color="#9ca3af" />

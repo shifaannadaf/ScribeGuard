@@ -115,10 +115,17 @@ class OpenMRSIntegrationAgent(Agent[dict[str, Any]]):
             # 3) Map ────────────────────────────────────────────────
             practitioner_uuid = ctx.payload.get("practitioner_uuid") or self.mapper.default_practitioner_uuid()
             location_uuid     = ctx.payload.get("location_uuid")     or self.mapper.default_location_uuid()
+
+            # Use the encounter's recorded date as the visit timestamp so all
+            # resources (Encounter, Observations, Allergies, Conditions, Medications)
+            # are filed under the correct visit date rather than the submission time.
+            visit_ts = encounter.created_at.strftime("%Y-%m-%dT%H:%M:%S+00:00")
+
             encounter_payload = self.mapper.build_encounter_payload(
                 patient_uuid=patient_uuid,
                 practitioner_uuid=practitioner_uuid,
                 location_uuid=location_uuid,
+                when=visit_ts,
             )
 
             soap_md = self.mapper.soap_to_markdown(
@@ -130,101 +137,103 @@ class OpenMRSIntegrationAgent(Agent[dict[str, Any]]):
                 plan=note.plan,
             )
 
-            ctx.submissions.mark_in_flight(record, encounter_payload)
+            ctx.submissions.mark_in_flight(record, {"patient": patient_uuid, "visit_ts": visit_ts})
 
-            # 4a) Encounter ─────────────────────────────────────────
+            # 4a) Encounter (REST) ──────────────────────────────────
             try:
-                openmrs_encounter_uuid = self.writer.create_encounter(encounter_payload)
+                openmrs_encounter_uuid = self.writer.create_encounter(
+                    patient_uuid=patient_uuid,
+                    visit_ts=visit_ts,
+                    provider_uuid=practitioner_uuid,
+                    location_uuid=location_uuid,
+                )
             except Exception as exc:  # noqa: BLE001
                 raise AgentExecutionError(f"OpenMRS Encounter write failed: {exc}") from exc
 
-            # 4b) Clinical-note Observation ──────────────────────────
-            obs_payload = self.mapper.build_clinical_note_observation(
-                patient_uuid=patient_uuid,
-                encounter_uuid=openmrs_encounter_uuid,
-                soap_markdown=soap_md,
-            )
+            # 4b) SOAP note Observation (REST) ────────────────────────
             try:
-                openmrs_observation_uuid = self.writer.create_observation(obs_payload)
+                openmrs_observation_uuid = self.writer.create_soap_observation(
+                    patient_uuid=patient_uuid,
+                    encounter_uuid=openmrs_encounter_uuid,
+                    soap_text=soap_md,
+                    obs_datetime=visit_ts,
+                )
             except Exception as exc:  # noqa: BLE001
-                raise AgentExecutionError(f"OpenMRS Observation write failed: {exc}") from exc
+                raise AgentExecutionError(f"OpenMRS SOAP Observation write failed: {exc}") from exc
 
-            # 4c) Vital signs ───────────────────────────────────────
+            # 4c) Vital signs (REST obs) ────────────────────────────
             vitals = ctx.entities.list_vital_signs(encounter.id)
             vital_uuids: list[str] = []
             vital_errors: list[str] = []
             for v in vitals:
-                payload = self.mapper.build_vital_observation(
-                    patient_uuid=patient_uuid,
-                    encounter_uuid=openmrs_encounter_uuid,
-                    kind=v.kind, value=v.value, unit=v.unit,
-                )
-                if not payload:
-                    continue
                 try:
-                    obs_id = self.writer.create_observation(payload)
+                    obs_id = self.writer.create_vital(
+                        patient_uuid=patient_uuid,
+                        encounter_uuid=openmrs_encounter_uuid,
+                        kind=v.kind,
+                        value=v.value,
+                        obs_datetime=visit_ts,
+                    )
                     v.openmrs_resource_uuid = obs_id
                     if obs_id:
                         vital_uuids.append(obs_id)
                 except Exception as exc:  # noqa: BLE001
                     vital_errors.append(f"{v.kind}: {exc}")
 
-            # 4d) Allergies ─────────────────────────────────────────
+            # 4d) Allergies (REST) ──────────────────────────────────
             allergies = ctx.entities.list_allergies(encounter.id)
             allergy_uuids: list[str] = []
             allergy_errors: list[str] = []
             for a in allergies:
-                payload = self.mapper.build_allergy(
-                    patient_uuid=patient_uuid,
-                    substance=a.substance,
-                    reaction=a.reaction,
-                    severity=a.severity,
-                    category=a.category,
-                )
                 try:
-                    res_id = self.writer.create_allergy(payload)
+                    res_id = self.writer.create_allergy(
+                        patient_uuid=patient_uuid,
+                        substance=a.substance,
+                        reaction=a.reaction,
+                        severity=a.severity,
+                        category=a.category,
+                    )
                     a.openmrs_resource_uuid = res_id
                     if res_id:
                         allergy_uuids.append(res_id)
                 except Exception as exc:  # noqa: BLE001
                     allergy_errors.append(f"{a.substance}: {exc}")
 
-            # 4e) Conditions ────────────────────────────────────────
+            # 4e) Conditions (REST) ─────────────────────────────────
             conditions = ctx.entities.list_conditions(encounter.id)
             condition_uuids: list[str] = []
             condition_errors: list[str] = []
             for c in conditions:
-                payload = self.mapper.build_condition(
-                    patient_uuid=patient_uuid,
-                    description=c.description,
-                    icd10_code=c.icd10_code,
-                    snomed_code=c.snomed_code,
-                    clinical_status=c.clinical_status,
-                    verification=c.verification,
-                )
                 try:
-                    res_id = self.writer.create_condition(payload)
+                    res_id = self.writer.create_condition(
+                        patient_uuid=patient_uuid,
+                        description=c.description,
+                        icd10_code=c.icd10_code,
+                        clinical_status=c.clinical_status,
+                        onset_datetime=visit_ts,
+                    )
                     c.openmrs_resource_uuid = res_id
                     if res_id:
                         condition_uuids.append(res_id)
                 except Exception as exc:  # noqa: BLE001
                     condition_errors.append(f"{c.description}: {exc}")
 
-            # 4f) Medication requests ───────────────────────────────
+            # 4f) Medications (REST drug orders) ────────────────────
             medications = ctx.medications.for_encounter(encounter.id)
             medication_uuids: list[str] = []
             medication_errors: list[str] = []
             for m in medications:
-                payload = self.mapper.build_medication_request(
-                    patient_uuid=patient_uuid,
-                    encounter_uuid=openmrs_encounter_uuid,
-                    practitioner_uuid=practitioner_uuid,
-                    name=m.name,
-                    dose=m.dose, route=m.route, frequency=m.frequency,
-                    duration=m.duration, indication=m.indication,
-                )
                 try:
-                    res_id = self.writer.create_medication_request(payload)
+                    res_id = self.writer.create_medication_order(
+                        patient_uuid=patient_uuid,
+                        encounter_uuid=openmrs_encounter_uuid,
+                        drug_name=m.name,
+                        dose=m.dose,
+                        route=m.route,
+                        frequency=m.frequency,
+                        duration=m.duration,
+                    )
+                    m.openmrs_resource_uuid = res_id
                     if res_id:
                         medication_uuids.append(res_id)
                 except Exception as exc:  # noqa: BLE001

@@ -367,6 +367,7 @@ def _to_list_item(enc: Encounter) -> EncounterListItem:
         patient_id=enc.patient_id,
         date=enc.created_at.strftime("%Y-%m-%d"),
         time=enc.created_at.strftime("%I:%M %p"),
+        created_at=enc.created_at,
         duration=enc.duration,
         status=enc.status,
         processing_stage=enc.processing_stage,

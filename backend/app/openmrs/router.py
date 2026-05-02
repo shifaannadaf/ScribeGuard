@@ -18,7 +18,7 @@ from pydantic import BaseModel
 import httpx
 
 from .metadata    import get_metadata
-from .patient     import get_patient_by_identifier, get_patient_by_uuid
+from .patient     import get_patient_by_identifier, get_patient_by_uuid, search_patients
 from .encounter   import create_encounter
 from .allergy     import get_allergies, create_allergy, update_allergy, delete_allergy
 from .condition   import get_conditions, create_condition, update_condition, delete_condition
@@ -124,6 +124,11 @@ def route_metadata():
 # ===========================================================================
 # PATIENT
 # ===========================================================================
+
+@router.get("/patients/search", summary="Search OpenMRS patients by name or identifier")
+def route_patient_search(q: str, limit: int = 10):
+    """Search by name (e.g. 'John') or OpenMRS ID (e.g. '10001YY'). Returns up to `limit` results."""
+    return _run(search_patients, q, limit)
 
 @router.get("/patient", summary="Search patient by OpenMRS identifier (e.g. 10001YY)")
 def route_patient_by_identifier(identifier: str):

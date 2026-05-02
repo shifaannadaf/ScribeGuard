@@ -23,6 +23,7 @@ export interface EncounterListItem {
   patient_id: string
   date: string
   time: string
+  created_at: string | null
   duration: string | null
   status: EncounterStatus
   processing_stage: ProcessingStage

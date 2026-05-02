@@ -1,15 +1,120 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   FileText, Clock, CheckCircle2, Mic, Square, X, Loader2, Check,
-  Activity, ShieldAlert, AlertCircle, Upload,
+  Activity, ShieldAlert, AlertCircle, Upload, Search, UserCheck,
 } from 'lucide-react'
 import {
   createEncounter, getStats, importTranscript, intakeAudio, listRegisteredAgents,
-  type DashboardStats, type RegisteredAgent,
+  searchOpenMRSPatients,
+  type DashboardStats, type RegisteredAgent, type OpenMRSPatient,
 } from '../api/encounters'
 import { useLiveCaption } from '../hooks/useLiveCaption'
 import './Dashboard.css'
+
+// ── Patient search dropdown ───────────────────────────────────────────────
+function PatientSearch({
+  onSelect,
+  selectedName,
+  onClear,
+}: {
+  onSelect: (p: OpenMRSPatient) => void
+  selectedName: string | null
+  onClear: () => void
+}) {
+  const [query, setQuery]     = useState('')
+  const [results, setResults] = useState<OpenMRSPatient[]>([])
+  const [loading, setLoading] = useState(false)
+  const [open, setOpen]       = useState(false)
+  const timerRef              = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const wrapRef               = useRef<HTMLDivElement>(null)
+
+  const runSearch = useCallback((q: string) => {
+    if (q.trim().length < 2) { setResults([]); setOpen(false); return }
+    setLoading(true)
+    searchOpenMRSPatients(q)
+      .then(r => { setResults(r); setOpen(r.length > 0) })
+      .catch(() => setResults([]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const v = e.target.value
+    setQuery(v)
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => runSearch(v), 350)
+  }
+
+  function pick(p: OpenMRSPatient) {
+    onSelect(p)
+    setQuery('')
+    setResults([])
+    setOpen(false)
+  }
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  if (selectedName) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px',
+        background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.3)',
+        borderRadius: 8, fontSize: 13 }}>
+        <UserCheck size={14} color="#10b981" />
+        <span style={{ flex: 1, color: '#e5e7eb' }}>{selectedName}</span>
+        <button onClick={onClear} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: '#9ca3af' }}>
+          <X size={13} />
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative' }}>
+      <div style={{ position: 'relative' }}>
+        <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#6b7280', pointerEvents: 'none' }} />
+        <input
+          type="text"
+          value={query}
+          onChange={handleChange}
+          placeholder="Search by name or OpenMRS ID…"
+          className="input-field"
+          style={{ paddingLeft: 30 }}
+        />
+        {loading && <Loader2 size={13} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: '#6b7280', animation: 'spin 1s linear infinite' }} />}
+      </div>
+      {open && results.length > 0 && (
+        <div style={{
+          position: 'absolute', zIndex: 50, top: '100%', left: 0, right: 0, marginTop: 4,
+          background: '#1e2130', border: '1px solid #2a2d3a', borderRadius: 8,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.4)', overflow: 'hidden',
+        }}>
+          {results.map(p => (
+            <button key={p.uuid} onClick={() => pick(p)} style={{
+              width: '100%', textAlign: 'left', padding: '9px 12px',
+              background: 'none', border: 'none', cursor: 'pointer',
+              borderBottom: '1px solid #2a2d3a', display: 'flex', flexDirection: 'column', gap: 2,
+            }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+            >
+              <span style={{ color: '#e5e7eb', fontSize: 13, fontWeight: 500 }}>{p.name || '(no name)'}</span>
+              <span style={{ color: '#6b7280', fontSize: 11 }}>
+                ID: {p.identifier || '—'} · {p.gender || '—'}{p.birthDate ? ` · ${p.birthDate}` : ''}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 type RecordState = 'idle' | 'setup' | 'recording' | 'processing' | 'import-setup'
 type Step = { label: string; status: 'pending' | 'active' | 'done' | 'failed'; agent?: string }
@@ -37,6 +142,19 @@ export default function Dashboard() {
   const [steps, setSteps]             = useState<Step[]>([])
   const [error, setError]             = useState<string | null>(null)
   const [importFile, setImportFile]   = useState<File | null>(null)
+  const [selectedPatient, setSelectedPatient] = useState<OpenMRSPatient | null>(null)
+
+  function pickPatient(p: OpenMRSPatient) {
+    setSelectedPatient(p)
+    setPatientName(p.name)
+    setPatientId(p.identifier)
+    setOpenmrsUuid(p.uuid)
+  }
+
+  function clearPatient() {
+    setSelectedPatient(null)
+    setPatientName(''); setPatientId(''); setOpenmrsUuid('')
+  }
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef        = useRef<Blob[]>([])
@@ -126,6 +244,7 @@ export default function Dashboard() {
     setPatientName(''); setPatientId(''); setOpenmrsUuid('')
     setImportFile(null)
     setError(null)
+    clearPatient()
   }
 
   async function importTranscriptFlow() {
@@ -242,19 +361,22 @@ export default function Dashboard() {
                 <button onClick={cancelSetup} className="icon-button"><X size={16} /></button>
               </div>
               <div className="form-group">
+                <label className="input-label">Search OpenMRS Patient</label>
+                <PatientSearch
+                  onSelect={pickPatient}
+                  selectedName={selectedPatient ? `${selectedPatient.name} · ${selectedPatient.identifier}` : null}
+                  onClear={clearPatient}
+                />
+              </div>
+              <div className="form-group">
                 <label className="input-label">Patient Name</label>
                 <input type="text" value={patientName} onChange={e => setPatientName(e.target.value)}
-                  placeholder="e.g. John Doe" autoFocus className="input-field" />
+                  placeholder="e.g. John Doe" className="input-field" />
               </div>
               <div className="form-group">
                 <label className="input-label">Patient ID</label>
                 <input type="text" value={patientId} onChange={e => setPatientId(e.target.value)}
                   placeholder="e.g. P-00123" className="input-field" />
-              </div>
-              <div className="form-group">
-                <label className="input-label">OpenMRS Patient UUID <span style={{ opacity: 0.6 }}>(optional)</span></label>
-                <input type="text" value={openmrsUuid} onChange={e => setOpenmrsUuid(e.target.value)}
-                  placeholder="auto-resolved if omitted" className="input-field" />
               </div>
               <div className="form-group">
                 <label className="input-label">
@@ -288,6 +410,14 @@ export default function Dashboard() {
                 <button onClick={cancelSetup} className="icon-button"><X size={16} /></button>
               </div>
               <div className="form-group">
+                <label className="input-label">Search OpenMRS Patient</label>
+                <PatientSearch
+                  onSelect={pickPatient}
+                  selectedName={selectedPatient ? `${selectedPatient.name} · ${selectedPatient.identifier}` : null}
+                  onClear={clearPatient}
+                />
+              </div>
+              <div className="form-group">
                 <label className="input-label">Patient Name</label>
                 <input type="text" value={patientName} onChange={e => setPatientName(e.target.value)}
                   placeholder="e.g. John Doe" autoFocus className="input-field" />
@@ -296,11 +426,6 @@ export default function Dashboard() {
                 <label className="input-label">Patient ID</label>
                 <input type="text" value={patientId} onChange={e => setPatientId(e.target.value)}
                   placeholder="e.g. P-00123" className="input-field" />
-              </div>
-              <div className="form-group">
-                <label className="input-label">OpenMRS Patient UUID <span style={{ opacity: 0.6 }}>(optional)</span></label>
-                <input type="text" value={openmrsUuid} onChange={e => setOpenmrsUuid(e.target.value)}
-                  placeholder="auto-resolved if omitted" className="input-field" />
               </div>
               {error && <p className="error-text">{error}</p>}
               <button onClick={startRecording} disabled={!patientName.trim() || !patientId.trim()}

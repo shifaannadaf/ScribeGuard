@@ -1,0 +1,47 @@
+Doctor: Hello, I see that you're a 19-year-old Hispanic female. What brings you in today?
+
+Patient: Hi doctor. I've been having episodes of lightheadedness, weakness, sweating, diarrhea, and vomiting. This is actually my third visit to the hospital with these same complaints.
+
+Doctor: I'm sorry to hear that. Have you been monitoring your symptoms at home?
+
+Patient: Yes, I used my girlfriend's blood glucose monitor — she's diabetic. My blood sugar was reading 53 mg/dL during one of the episodes, but it came back up to 80 mg/dL after I ate two sandwiches and some chocolate.
+
+Doctor: Good that you tracked it. Let me go over your vital signs from triage. Your blood pressure was 98/65 mmHg, heart rate 81 beats per minute, respiratory rate 18 breaths per minute, oxygen saturation 100% on room air, temperature 37.0 degrees Celsius, and your weight is 82 kilograms with a height of 163 centimeters.
+
+Patient: Okay.
+
+Doctor: Before I go further — do you have any allergies to medications or foods?
+
+Patient: Yes, I'm allergic to pineapples. I get hives and stomach cramps. Also I had a reaction to sulfa drugs once — I broke out in a rash all over.
+
+Doctor: Noted — allergy to pineapples causing urticaria and GI distress, and sulfonamide allergy causing a rash. Are you currently taking any medications?
+
+Patient: No, I'm not on any regular medications.
+
+Doctor: Any past medical history?
+
+Patient: Yes, I've been diagnosed with asthma since I was 12. I also had acne treated with topical tretinoin last year, and I've had significant psychosocial stress but no formal psychiatric diagnosis.
+
+Doctor: Any past surgeries?
+
+Patient: No surgical history.
+
+Doctor: Do you smoke or use alcohol?
+
+Patient: No, neither.
+
+Doctor: On examination, you appear well-developed, currently asymptomatic, and in no acute distress. Your blood glucose on the bedside monitor was 60 mg/dL, which we confirmed with a lab draw. Your complete metabolic panel and CBC were otherwise unremarkable.
+
+Patient: So what's the diagnosis?
+
+Doctor: You're presenting with symptomatic hypoglycemia. Given the episodic nature and the fact it resolves with eating, we need to rule out insulinoma and other causes of reactive hypoglycemia. We're going to start you on intravenous 0.9% sodium chloride at 125 mL per hour for volume restoration, and give you ondansetron 4 milligrams IV for your nausea and vomiting.
+
+Patient: Is there anything I should change in my diet?
+
+Doctor: Yes — add protein to every meal, avoid simple sugars alone, and eat small frequent meals throughout the day rather than large ones. Carry a fast-acting carbohydrate with you at all times.
+
+Patient: I can do that.
+
+Doctor: You'll also need to follow up with your primary care provider within one week for further testing — specifically a supervised fasting study and insulin levels. We may also refer you to endocrinology.
+
+Patient: Got it. Thank you, doctor.

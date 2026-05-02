@@ -52,3 +52,4 @@ uploads/
 *.mp3
 *.wav
 *.m4a
+train.csvextraction_results.json
