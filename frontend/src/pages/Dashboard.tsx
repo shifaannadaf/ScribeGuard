@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileText, Clock, CheckCircle2, Layers, Mic, Upload, Square, X, Loader2, Check } from 'lucide-react'
-import { getStats, createEncounter, transcribeAudio, generateNote, type Stats } from '../api/encounters'
+import { FileText, Clock, CheckCircle2, Layers, Mic, Upload, Square, X, Loader2, Check, Search } from 'lucide-react'
+import { getStats, createEncounter, transcribeAudio, generateNote, formatEncounter, getPatientStatus, type Stats } from '../api/encounters'
+import { searchPatients, type OpenMRSPatient } from '../api/openmrs'
 
 type RecordState = 'idle' | 'setup' | 'recording' | 'processing'
 type Step = { label: string; status: 'pending' | 'active' | 'done' }
@@ -21,11 +22,20 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const [stats, setStats]             = useState<Stats | null>(null)
   const [recState, setRecState]       = useState<RecordState>('idle')
-  const [patientName, setPatientName] = useState('')
-  const [patientId,   setPatientId]   = useState('')
-  const [elapsed, setElapsed]         = useState(0)
-  const [steps,   setSteps]           = useState<Step[]>([])
-  const [error,   setError]           = useState<string | null>(null)
+  const [patientName,    setPatientName]    = useState('')
+  const [patientId,      setPatientId]      = useState('')
+  const [elapsed,        setElapsed]        = useState(0)
+  const [steps,          setSteps]          = useState<Step[]>([])
+  const [error,          setError]          = useState<string | null>(null)
+  const [omrsQuery,      setOmrsQuery]      = useState('')
+  const [omrsPatient,    setOmrsPatient]    = useState<OpenMRSPatient | null>(null)
+  const [omrsResults,    setOmrsResults]    = useState<OpenMRSPatient[]>([])
+  const [omrsSearching,  setOmrsSearching]  = useState(false)
+  const [omrsError,      setOmrsError]      = useState<string | null>(null)
+  const [patientType,    setPatientType]    = useState<'new' | 'returning' | null>(null)
+  const [encounterCount, setEncounterCount] = useState(0)
+  const [lastVisit,      setLastVisit]      = useState<string | null>(null)
+  const [importedFile,   setImportedFile]   = useState<{ name: string; content: string } | null>(null)
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef        = useRef<Blob[]>([])
@@ -76,7 +86,12 @@ export default function Dashboard() {
       try {
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
 
-        const enc = await createEncounter(patientName.trim(), patientId.trim())
+        const enc = await createEncounter(
+          patientName.trim(),
+          patientId.trim(),
+          patientType ?? 'new',
+          omrsPatient?.uuid,
+        )
         updateStep(0, 'done'); updateStep(1, 'active')
 
         await transcribeAudio(enc.id, blob)
@@ -96,10 +111,123 @@ export default function Dashboard() {
     mr.stop()
   }
 
+  async function handleFileImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Reset file input
+    e.target.value = ''
+
+    if (!file.name.endsWith('.txt')) {
+      setError('Only .txt files are supported for import')
+      setTimeout(() => setError(null), 3000)
+      return
+    }
+
+    try {
+      const content = await file.text()
+      setImportedFile({ name: file.name, content })
+      setRecState('setup')
+      setError(null)
+    } catch (e: any) {
+      setError('Failed to read file')
+      setTimeout(() => setError(null), 3000)
+    }
+  }
+
+  async function handleImportSubmit() {
+    if (!patientName.trim() || !patientId.trim() || !importedFile) return
+    setError(null)
+
+    setSteps([
+      { label: 'Creating encounter',   status: 'active'  },
+      { label: 'Processing transcript', status: 'pending' },
+      { label: 'Generating SOAP note', status: 'pending' },
+    ])
+    setRecState('processing')
+
+    try {
+      const enc = await createEncounter(
+        patientName.trim(),
+        patientId.trim(),
+        patientType ?? 'new',
+        omrsPatient?.uuid,
+      )
+      updateStep(0, 'done'); updateStep(1, 'active')
+
+      // Update encounter with imported transcript
+      await fetch(`http://localhost:8000/encounters/${enc.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript: importedFile.content })
+      })
+
+      // Format the transcript
+      await formatEncounter(enc.id)
+      updateStep(1, 'done'); updateStep(2, 'active')
+
+      await generateNote(enc.id)
+      updateStep(2, 'done')
+
+      getStats().then(setStats).catch(() => {})
+      setTimeout(() => navigate(`/notes/${enc.id}`), 600)
+    } catch (e: any) {
+      setError(e.message ?? 'Failed to import transcript')
+      setRecState('idle')
+      setSteps([])
+    }
+  }
+
+  async function searchOmrs() {
+    if (!omrsQuery.trim()) return
+    setOmrsSearching(true)
+    setOmrsError(null)
+    setOmrsPatient(null)
+    setOmrsResults([])
+    try {
+      const results = await searchPatients(omrsQuery.trim())
+      if (results.length === 0) {
+        setOmrsError('No patients found.')
+      } else if (results.length === 1) {
+        selectOmrsPatient(results[0])
+      } else {
+        setOmrsResults(results)
+      }
+    } catch {
+      setOmrsError('Could not reach OpenMRS.')
+    } finally {
+      setOmrsSearching(false)
+    }
+  }
+
+  async function selectOmrsPatient(p: OpenMRSPatient) {
+    setOmrsPatient(p)
+    setOmrsResults([])
+    setPatientName(p.name)
+    setPatientId(p.identifier)
+    try {
+      const s = await getPatientStatus(p.identifier)
+      setPatientType(s.patient_type)
+      setEncounterCount(s.encounter_count)
+      setLastVisit(s.last_visit)
+    } catch {
+      setPatientType('returning') // found in OpenMRS = known patient
+    }
+  }
+
   function cancelSetup() {
     setRecState('idle')
     setPatientName('')
     setPatientId('')
+    setOmrsQuery('')
+    setOmrsPatient(null)
+    setOmrsResults([])
+    setOmrsError(null)
+    setPatientType(null)
+    setEncounterCount(0)
+    setLastVisit(null)
+    setImportedFile(null)
+    setError(null)
     setError(null)
   }
 
@@ -148,9 +276,9 @@ export default function Dashboard() {
 
   <input
     type="file"
-    accept=".txt,.pdf,.doc,.docx,.mp3,.wav"
+    accept=".txt"
     className="hidden"
-    onChange={(e) => console.log("File uploaded:", e.target.files?.[0])}
+    onChange={handleFileImport}
   />
 </label>
  
@@ -163,25 +291,117 @@ export default function Dashboard() {
                 <p className="text-white text-sm font-semibold">New Recording</p>
                 <button onClick={cancelSetup} className="text-gray-600 hover:text-white transition-colors cursor-pointer"><X size={16} /></button>
               </div>
+
+              {/* OpenMRS search */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-gray-500 text-xs uppercase tracking-wider">Search OpenMRS</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text" value={omrsQuery}
+                    onChange={e => { setOmrsQuery(e.target.value); setOmrsError(null); setOmrsResults([]); setOmrsPatient(null) }}
+                    onKeyDown={e => e.key === 'Enter' && searchOmrs()}
+                    placeholder="Name or ID (e.g. Atharv or 10001PE)" autoFocus
+                    className="flex-1 bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-600 text-sm rounded-lg px-3 py-2.5 outline-none focus:border-blue-600 transition-colors duration-150"
+                  />
+                  <button onClick={searchOmrs} disabled={omrsSearching || !omrsQuery.trim()}
+                    className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white px-3 rounded-lg transition-colors duration-150 cursor-pointer">
+                    {omrsSearching ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
+                  </button>
+                </div>
+                {omrsError && <p className="text-red-400 text-xs">{omrsError}</p>}
+              </div>
+
+              {/* Multiple results dropdown */}
+              {omrsResults.length > 0 && (
+                <div className="flex flex-col gap-1">
+                  {omrsResults.map(p => (
+                    <button key={p.uuid} onClick={() => selectOmrsPatient(p)}
+                      className="text-left bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg px-3 py-2 transition-colors cursor-pointer">
+                      <p className="text-gray-200 text-sm font-medium">{p.name}</p>
+                      <p className="text-gray-500 text-xs">{p.identifier} · {p.gender?.toUpperCase() ?? '—'} · {p.birthdate ?? '—'}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Patient confirmed + type badge */}
+              {omrsPatient && (
+                <div className="flex flex-col gap-2">
+                  <div className="bg-green-500/10 border border-green-500/30 rounded-lg px-3 py-2.5 flex items-center gap-3">
+                    <CheckCircle2 size={16} className="text-green-400 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-green-300 text-sm font-medium truncate">{omrsPatient.name}</p>
+                      <p className="text-green-500 text-xs">{omrsPatient.identifier} · {omrsPatient.gender?.toUpperCase() ?? '—'} · {omrsPatient.birthdate ?? '—'}</p>
+                    </div>
+                  </div>
+                  {patientType && (
+                    <div className={`rounded-lg px-3 py-2 flex items-center gap-2 ${
+                      patientType === 'returning'
+                        ? 'bg-blue-500/10 border border-blue-500/20'
+                        : 'bg-purple-500/10 border border-purple-500/20'
+                    }`}>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                        patientType === 'returning'
+                          ? 'bg-blue-500/20 text-blue-300'
+                          : 'bg-purple-500/20 text-purple-300'
+                      }`}>
+                        {patientType === 'returning' ? 'Returning Patient' : 'New Patient'}
+                      </span>
+                      {patientType === 'returning' && encounterCount > 0 && (
+                        <span className="text-gray-500 text-xs">
+                          {encounterCount} prior visit{encounterCount !== 1 ? 's' : ''} in ScribeGuard
+                          {lastVisit && ` · last ${new Date(lastVisit).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+                        </span>
+                      )}
+                      {patientType === 'returning' && encounterCount === 0 && (
+                        <span className="text-gray-500 text-xs">Registered in OpenMRS</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="border-t border-gray-800" />
+
+              {/* Manual fields */}
               <div className="flex flex-col gap-3">
+                {importedFile && (
+                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <FileText size={14} className="text-blue-400" />
+                      <span className="text-blue-300 text-xs font-medium">{importedFile.name}</span>
+                    </div>
+                  </div>
+                )}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-gray-500 text-xs uppercase tracking-wider">Patient Name</label>
                   <input type="text" value={patientName} onChange={e => setPatientName(e.target.value)}
-                    placeholder="e.g. John Doe" autoFocus
+                    placeholder="e.g. John Doe"
                     className="bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-600 text-sm rounded-lg px-3 py-2.5 outline-none focus:border-blue-600 transition-colors duration-150" />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-gray-500 text-xs uppercase tracking-wider">Patient ID</label>
                   <input type="text" value={patientId} onChange={e => setPatientId(e.target.value)}
                     placeholder="e.g. P-00123"
-                    onKeyDown={e => e.key === 'Enter' && startRecording()}
+                    onKeyDown={e => e.key === 'Enter' && (importedFile ? handleImportSubmit() : startRecording())}
                     className="bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-600 text-sm rounded-lg px-3 py-2.5 outline-none focus:border-blue-600 transition-colors duration-150" />
                 </div>
               </div>
+
               {error && <p className="text-red-400 text-xs">{error}</p>}
-              <button onClick={startRecording} disabled={!patientName.trim() || !patientId.trim()}
+              <button 
+                onClick={importedFile ? handleImportSubmit : startRecording} 
+                disabled={!patientName.trim() || !patientId.trim()}
                 className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors duration-150 cursor-pointer">
-                <Mic size={15} /> Start Recording
+                {importedFile ? (
+                  <>
+                    <Upload size={15} /> Import & Process
+                  </>
+                ) : (
+                  <>
+                    <Mic size={15} /> Start Recording
+                  </>
+                )}
               </button>
             </div>
           )}

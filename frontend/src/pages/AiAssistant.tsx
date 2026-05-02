@@ -23,10 +23,13 @@ export default function AiAssistant() {
     if (!id) return
     getEncounter(id).then(data => {
       setRecord(data)
+      const hasHistory = data.status === 'pushed' // Only have history if pushed to OpenMRS
       setMessages([{
         id: 0,
         role: 'assistant',
-        content: `Hi, I am the ScribeGuard assistant for this encounter. I have read the full transcript for **${data.patient_name}**.\n\nAsk me anything about the consultation — medications, diagnoses, the care plan, or request a summary.`,
+        content: hasHistory 
+          ? `Hi, I am the ScribeGuard assistant for this encounter. I have access to:\n\n✓ **Current encounter transcript** for ${data.patient_name}\n✓ **Complete patient history** from OpenMRS\n\nI can answer questions about the current visit, past medical history, medications, allergies, and suggest clinical insights based on the full patient record.`
+          : `Hi, I am the ScribeGuard assistant for this encounter. I have read the full transcript for **${data.patient_name}**.\n\n*Note: This encounter hasn't been pushed to OpenMRS yet, so I don't have access to the patient's historical medical records. Push to OpenMRS to enable full history context.*\n\nAsk me anything about the current consultation — medications, diagnoses, the care plan, or request a summary.`,
       }])
     })
   }, [id])
@@ -91,9 +94,15 @@ export default function AiAssistant() {
           <h1 className="text-white text-base font-semibold leading-tight">AI Assistant</h1>
           <p className="text-gray-500 text-xs mt-0.5">{record.patient_name} · {record.patient_id} · {record.date}</p>
         </div>
-        <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
-          Grounded in transcript
-        </span>
+        {record.status === 'pushed' ? (
+          <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-green-500/10 text-green-400 border border-green-500/20">
+            Full history access
+          </span>
+        ) : (
+          <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
+            Transcript only
+          </span>
+        )}
       </div>
 
       {/* Messages */}

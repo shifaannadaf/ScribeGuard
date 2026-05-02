@@ -4,31 +4,62 @@ from app.config import settings
 
 client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
-SOAP_SYSTEM = """You are a clinical documentation AI. Extract structured data from a doctor-patient transcript.
+EXTRACT_SYSTEM = """You are a clinical documentation AI. Extract structured clinical data from a doctor-patient transcript.
 
-Return ONLY valid JSON with this exact shape:
+Return ONLY valid JSON with this exact shape — no markdown, no extra text:
 {
-  "medications": [{"name": str, "dose": str, "route": str, "frequency": str, "start_date": str}],
-  "allergies":   [{"allergen": str, "reaction": str, "severity": "Mild|Moderate|Severe"}],
-  "diagnoses":   [{"icd10_code": str, "description": str, "status": "Presumed|Confirmed|Ruled Out"}]
+  "chief_complaint": "string — main reason for the visit in the patient's own words",
+  "clinical_summary": "string — 2-3 sentence clinical summary written by the doctor",
+  "vitals": {
+    "height_cm":               number or null,
+    "weight_kg":               number or null,
+    "temperature_c":           number or null,
+    "blood_pressure_systolic": number or null,
+    "blood_pressure_diastolic":number or null,
+    "spo2_pct":                number or null,
+    "resp_rate":               number or null,
+    "pulse":                   number or null
+  },
+  "diagnoses": [
+    {"icd10_code": "string", "description": "string", "status": "Presumed|Confirmed|Ruled Out"}
+  ],
+  "active_medications": [
+    {"name": "string", "dose": "string", "route": "string", "frequency": "string"}
+  ],
+  "past_medications": [
+    {"name": "string", "reason_stopped": "string"}
+  ],
+  "allergies": [
+    {"allergen": "string", "reaction": "string", "severity": "Mild|Moderate|Severe"}
+  ],
+"plan": "string — recommended next steps, follow-ups, referrals"
 }
 
 Rules:
-- Use empty arrays [] if nothing is mentioned.
-- Infer ICD-10 codes where possible; leave empty string if unsure.
-- start_date: use ISO date if mentioned, else empty string.
-- Do NOT include any text outside the JSON."""
+- Use null for unknown vitals, empty arrays [] if nothing is mentioned.
+- Infer ICD-10 codes where clearly applicable; leave empty string if unsure.
+- Do NOT invent data — only extract what is explicitly or strongly implied in the transcript."""
 
-CHAT_SYSTEM = """You are ScribeGuard, an AI clinical documentation assistant.
-You have access to the following doctor-patient transcript:
+CHAT_SYSTEM = """You are ScribeGuard, an AI clinical documentation assistant with access to complete patient history.
 
----TRANSCRIPT---
+---CURRENT ENCOUNTER TRANSCRIPT---
 {transcript}
 ---END TRANSCRIPT---
 
-Answer questions concisely and accurately based only on this transcript.
-Format medications, diagnoses, and care plan items as markdown bold where helpful.
-If something is not in the transcript, say so clearly."""
+---PATIENT HISTORY FROM EHR---
+{patient_history}
+---END PATIENT HISTORY---
+
+You can answer questions about:
+1. The current encounter (from the transcript)
+2. The patient's medical history (from the EHR)
+3. Connections between current symptoms and past conditions
+4. Potential drug interactions with existing medications
+5. Recommendations based on their full clinical picture
+
+Answer questions concisely and accurately. Format medications, diagnoses, and care plan items as markdown bold where helpful.
+If something is not available in either source, say so clearly.
+When making clinical suggestions, always consider the patient's complete medical history."""
 
 
 DIARIZE_SYSTEM = """You are a medical transcription formatter.
@@ -57,11 +88,11 @@ async def format_transcript(raw: str) -> str:
 
 
 async def generate_note(transcript: str) -> dict:
-    """Returns dict with medications, allergies, diagnoses lists."""
+    """Returns structured clinical data extracted from the transcript."""
     resp = await client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
-            {"role": "system", "content": SOAP_SYSTEM},
+            {"role": "system", "content": EXTRACT_SYSTEM},
             {"role": "user",   "content": f"Transcript:\n{transcript}"},
         ],
         temperature=0,
@@ -70,9 +101,14 @@ async def generate_note(transcript: str) -> dict:
     return json.loads(resp.choices[0].message.content)
 
 
-async def chat_with_transcript(transcript: str, message: str, history: list[dict]) -> str:
-    """Returns assistant reply string."""
-    system = CHAT_SYSTEM.format(transcript=transcript)
+async def chat_with_transcript(
+    transcript: str, 
+    message: str, 
+    history: list[dict],
+    patient_history: str = "No patient history available."
+) -> str:
+    """Returns assistant reply string with patient history context."""
+    system = CHAT_SYSTEM.format(transcript=transcript, patient_history=patient_history)
     messages = [{"role": "system", "content": system}]
     for h in history:
         messages.append({"role": h["role"], "content": h["content"]})

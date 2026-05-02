@@ -1,0 +1,63 @@
+Doctor: Welcome back! How have you been feeling over the past two weeks?
+
+Patient: Hi Dr. Johnson. I'm feeling much better actually. The excessive thirst has improved a lot, and I'm not getting up at night as much to use the bathroom.
+
+Doctor: That's great to hear! Have you been taking the medications as prescribed?
+
+Patient: Yes, I've been taking the Metformin twice a day with meals, the higher dose of Lisinopril in the morning, and the Atorvastatin at bedtime. I haven't missed any doses.
+
+Patient: Oh, and I wanted to mention - the Metformin upset my stomach for the first few days, but it's better now.
+
+Doctor: That's a common side effect that usually improves. I'm glad you stuck with it. Have you been checking your blood sugar?
+
+Patient: Yes, every morning like you said. It started at around 210, but this morning it was 145.
+
+Doctor: Excellent progress! Let me check your vital signs today.
+
+[Takes vitals]
+
+Doctor: Your blood pressure today is much better - 128 over 84. Heart rate is 72. Temperature is 98.4. Weight is down to 182 pounds - you've lost 3 pounds, that's great! Height is still 173 centimeters of course. Oxygen saturation is 99 percent. Your respiratory rate is 14.
+
+Patient: That's good to hear about the blood pressure!
+
+Doctor: Yes, very good. I have your lab results from two weeks ago. Your hemoglobin A1C was 8.2 percent, which confirms Type 2 Diabetes. Your fasting glucose was 198. Your kidney function is normal, and your cholesterol was elevated - LDL was 145 - so the Atorvastatin was the right call.
+
+Patient: What does the A1C mean?
+
+Doctor: It shows your average blood sugar over 3 months. Normal is below 5.7. Diabetes is diagnosed at 6.5 or higher. Yours at 8.2 means we need to get it down, but the good news is your home glucose readings show it's already improving with the medication.
+
+Patient: That's good. I met with the nutritionist like you suggested. She gave me a meal plan and I've been following it pretty closely. I've also been walking 30 minutes every day after dinner.
+
+Doctor: Fantastic! That's exactly what we need. How's your vision? Still blurry?
+
+Patient: Actually, it's much clearer now. I think it was related to the high blood sugar.
+
+Doctor: Most likely. High blood sugar can cause temporary vision changes. Now, any new concerns or symptoms?
+
+Patient: No, I feel much better overall. More energy too.
+
+Doctor: Perfect. Let me examine you. [Performs exam] Everything looks good. The wound on your foot has healed nicely. So here's what we're going to do going forward. You're responding well to the Metformin, so let's increase it to 1000 milligrams twice daily to get your blood sugar even better controlled. Keep taking the Lisinopril 20 milligrams and Atorvastatin 20 milligrams as you have been.
+
+Patient: Okay, higher dose of Metformin. Got it.
+
+Doctor: Yes. I'm also adding baby Aspirin - 81 milligrams once daily - for cardiovascular protection since you have diabetes and hypertension. Take it in the morning. Your diagnoses remain Type 2 Diabetes Mellitus, now confirmed, and Essential Hypertension, which is improving.
+
+Patient: Do I need to take the Aspirin forever?
+
+Doctor: Yes, it's for long-term prevention of heart attack and stroke. It's a low dose, so side effects are minimal. Just let me know if you notice any unusual bleeding or stomach upset. I'm also updating your medication list - you're no longer on the old 10 milligram dose of Lisinopril.
+
+Patient: Understood.
+
+Doctor: Continue checking your fasting blood sugar daily and bring your logbook to the next visit. Keep up with the diet and exercise - you're doing great with the weight loss. I want to see you back in 4 weeks this time. We'll check another A1C in 3 months to see your overall progress. If your blood sugars continue to improve, we may not need to add insulin at all.
+
+Patient: That's encouraging!
+
+Doctor: Also, since you have diabetes now, you should get a flu shot every year, and you'll need to schedule a dilated eye exam with an ophthalmologist annually to check for diabetic retinopathy. I'll send those referrals. And make sure you're checking your feet daily for any cuts or sores.
+
+Patient: I will. My dad had diabetes and he had some foot problems, so I'm being careful.
+
+Doctor: Smart thinking. Your father's history is exactly why we're being proactive. Any other questions?
+
+Patient: No, I think we covered everything. Thank you for all your help.
+
+Doctor: You're doing the hard work! Keep it up. I'll see you in 4 weeks. Schedule at the front desk on your way out.

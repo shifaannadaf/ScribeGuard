@@ -2,7 +2,7 @@ import enum
 from datetime import datetime
 from sqlalchemy import (
     Column, String, Text, Integer, DateTime, ForeignKey,
-    Enum as PgEnum, JSON
+    Enum as PgEnum, JSON, Boolean
 )
 from sqlalchemy.orm import relationship
 from app.db.database import Base
@@ -20,19 +20,29 @@ class Encounter(Base):
     id             = Column(String, primary_key=True)           # UUID
     patient_name   = Column(String(255), nullable=False)
     patient_id     = Column(String(50),  nullable=False)        # e.g. P-00123
-    openmrs_uuid   = Column(String(255), nullable=True)         # linked at push time
+    openmrs_uuid   = Column(String(255), nullable=True)         # linked at creation or push time
+    patient_type   = Column(String(20),  nullable=False, default="new")  # "new" | "returning"
     audio_filename = Column(String(255), nullable=True)
     transcript     = Column(Text,        nullable=True)
     duration       = Column(String(20),  nullable=True)         # e.g. "4m 32s"
     status         = Column(PgEnum(EncounterStatus), nullable=False, default=EncounterStatus.pending)
+    viewed         = Column(Boolean,     nullable=False, default=False)  # doctor has reviewed before approval
+    
+    # Extracted clinical data
+    chief_complaint  = Column(Text, nullable=True)
+    clinical_summary = Column(Text, nullable=True)
+    plan             = Column(Text, nullable=True)
+    vitals           = Column(JSON, nullable=True)              # {height, weight, temp, bp_sys, bp_dia, spo2, resp_rate, pulse}
+    
     created_at     = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at     = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
-    medications  = relationship("Medication",  back_populates="encounter", cascade="all, delete-orphan")
-    allergies    = relationship("Allergy",     back_populates="encounter", cascade="all, delete-orphan")
-    diagnoses    = relationship("Diagnosis",   back_populates="encounter", cascade="all, delete-orphan")
-    audit_logs   = relationship("AuditLog",    back_populates="encounter", cascade="all, delete-orphan")
-    chat_messages = relationship("ChatMessage", back_populates="encounter", cascade="all, delete-orphan")
+    medications      = relationship("Medication",      back_populates="encounter", cascade="all, delete-orphan")
+    past_medications = relationship("PastMedication",  back_populates="encounter", cascade="all, delete-orphan")
+    allergies        = relationship("Allergy",         back_populates="encounter", cascade="all, delete-orphan")
+    diagnoses        = relationship("Diagnosis",       back_populates="encounter", cascade="all, delete-orphan")
+    audit_logs       = relationship("AuditLog",        back_populates="encounter", cascade="all, delete-orphan")
+    chat_messages    = relationship("ChatMessage",     back_populates="encounter", cascade="all, delete-orphan")
 
 
 class Medication(Base):
@@ -47,6 +57,22 @@ class Medication(Base):
     start_date   = Column(String(20),  nullable=True)
 
     encounter = relationship("Encounter", back_populates="medications")
+
+
+class PastMedication(Base):
+    __tablename__ = "past_medications"
+
+    id           = Column(Integer, primary_key=True, autoincrement=True)
+    encounter_id = Column(String, ForeignKey("encounters.id", ondelete="CASCADE"), nullable=False)
+    name         = Column(String(255), nullable=False)
+    dose         = Column(String(100), nullable=True)
+    route        = Column(String(100), nullable=True)
+    frequency    = Column(String(100), nullable=True)
+    start_date   = Column(String(20),  nullable=True)
+    end_date     = Column(String(20),  nullable=True)
+    reason       = Column(String(255), nullable=True)          # why discontinued
+
+    encounter = relationship("Encounter", back_populates="past_medications")
 
 
 class Allergy(Base):
@@ -71,6 +97,7 @@ class Diagnosis(Base):
     status       = Column(String(50),  nullable=True)   # Presumed / Confirmed / Ruled Out
 
     encounter = relationship("Encounter", back_populates="diagnoses")
+
 
 
 class AuditLog(Base):

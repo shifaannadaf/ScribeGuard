@@ -1,9 +1,10 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Clock } from 'lucide-react'
+import { LayoutDashboard, Clock, Users } from 'lucide-react'
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/history', label: 'History', icon: Clock },
+  { to: '/history',   label: 'History',   icon: Clock },
+  { to: '/patients',  label: 'Patients',  icon: Users },
 ]
 
 export default function Sidebar() {
