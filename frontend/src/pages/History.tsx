@@ -8,6 +8,7 @@ import {
   listEncounters, deleteEncounter, resetEncounters,
   type EncounterListItem, type EncounterStatus,
 } from '../api/encounters'
+import { searchPatients, type OpenMRSPatient } from '../api/openmrs'
 
 const STATUS_FILTERS: Array<{ value: '' | EncounterStatus; label: string }> = [
   { value: '',         label: 'All' },

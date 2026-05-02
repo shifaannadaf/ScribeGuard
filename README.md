@@ -72,7 +72,8 @@ docker compose up -d              # PostgreSQL on :5432
 Bring up an OpenMRS Reference Application (FHIR2 module) on
 `http://localhost:8080/openmrs/ws/fhir2/R4`. Then in `backend/.env`:
 
-```
+```env
+# App
 DATABASE_URL=postgresql://scribeguard:scribeguard@localhost:5432/scribeguard
 OPENAI_API_KEY=sk-...
 FHIR_SERVER=http://localhost:8080/openmrs/ws/fhir2/R4
