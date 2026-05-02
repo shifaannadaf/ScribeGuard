@@ -121,6 +121,110 @@ export default function Dashboard() {
     mr.stop()
   }
 
+  async function handleFileImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Reset file input
+    e.target.value = ''
+
+    if (!file.name.endsWith('.txt')) {
+      setError('Only .txt files are supported for import')
+      setTimeout(() => setError(null), 3000)
+      return
+    }
+
+    try {
+      const content = await file.text()
+      setImportedFile({ name: file.name, content })
+      setRecState('setup')
+      setError(null)
+    } catch (e: any) {
+      setError('Failed to read file')
+      setTimeout(() => setError(null), 3000)
+    }
+  }
+
+  async function handleImportSubmit() {
+    if (!patientName.trim() || !patientId.trim() || !importedFile) return
+    setError(null)
+
+    setSteps([
+      { label: 'Creating encounter',   status: 'active'  },
+      { label: 'Processing transcript', status: 'pending' },
+      { label: 'Generating SOAP note', status: 'pending' },
+    ])
+    setRecState('processing')
+
+    try {
+      const enc = await createEncounter(
+        patientName.trim(),
+        patientId.trim(),
+        patientType ?? 'new',
+        omrsPatient?.uuid,
+      )
+      updateStep(0, 'done'); updateStep(1, 'active')
+
+      // Update encounter with imported transcript
+      await fetch(`http://localhost:8000/encounters/${enc.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript: importedFile.content })
+      })
+
+      // Format the transcript
+      await formatEncounter(enc.id)
+      updateStep(1, 'done'); updateStep(2, 'active')
+
+      await generateNote(enc.id)
+      updateStep(2, 'done')
+
+      getStats().then(setStats).catch(() => {})
+      setTimeout(() => navigate(`/notes/${enc.id}`), 600)
+    } catch (e: any) {
+      setError(e.message ?? 'Failed to import transcript')
+      setRecState('idle')
+      setSteps([])
+    }
+  }
+
+  async function searchOmrs() {
+    if (!omrsQuery.trim()) return
+    setOmrsSearching(true)
+    setOmrsError(null)
+    setOmrsPatient(null)
+    setOmrsResults([])
+    try {
+      const results = await searchPatients(omrsQuery.trim())
+      if (results.length === 0) {
+        setOmrsError('No patients found.')
+      } else if (results.length === 1) {
+        selectOmrsPatient(results[0])
+      } else {
+        setOmrsResults(results)
+      }
+    } catch {
+      setOmrsError('Could not reach OpenMRS.')
+    } finally {
+      setOmrsSearching(false)
+    }
+  }
+
+  async function selectOmrsPatient(p: OpenMRSPatient) {
+    setOmrsPatient(p)
+    setOmrsResults([])
+    setPatientName(p.name)
+    setPatientId(p.identifier)
+    try {
+      const s = await getPatientStatus(p.identifier)
+      setPatientType(s.patient_type)
+      setEncounterCount(s.encounter_count)
+      setLastVisit(s.last_visit)
+    } catch {
+      setPatientType('returning') // found in OpenMRS = known patient
+    }
+  }
+
   function cancelSetup() {
     setRecState('idle')
     setPatientName(''); setPatientId(''); setOpenmrsUuid('')
