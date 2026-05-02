@@ -52,7 +52,5 @@ uploads/
 *.mp3
 *.wav
 *.m4a
-
-# Local data artifacts
 train.csv
 extraction_results.json

@@ -1,0 +1,39 @@
+Doctor: Good morning. You've been referred to our department for a renal angiogram due to uncontrolled hypertension despite eight months of antihypertensive therapy. Can you walk me through your symptoms?
+
+Patient: Yes, doctor. I've been having severe headaches almost daily and a lot of fatigue. My blood pressure just won't come down no matter what I take.
+
+Doctor: Before we go through your workup — do you have any known allergies?
+
+Patient: Yes, I'm allergic to ACE inhibitors. When I tried lisinopril, I developed a severe dry cough and my throat started swelling. My previous doctor stopped it immediately.
+
+Doctor: That's important — ACE inhibitor allergy with angioedema and cough. We'll avoid that class entirely. Are you currently on any medications?
+
+Patient: I'm on amlodipine 10 milligrams once a day, losartan 100 milligrams once a day, and hydrochlorothiazide 25 milligrams once a day. I've been on this combination for about eight months now.
+
+Doctor: Any history of smoking, alcohol, diabetes, or high cholesterol?
+
+Patient: No to all of those. No family history of diabetes or atherosclerosis either.
+
+Doctor: Let me review your vitals today. Blood pressure is 175/110 mmHg — that confirms the uncontrolled hypertension. Heart rate is 78 beats per minute, respiratory rate 16 breaths per minute, oxygen saturation 98% on room air, temperature 36.8 degrees Celsius, weight 91 kilograms, height 175 centimeters.
+
+Patient: That blood pressure number is still too high, isn't it?
+
+Doctor: It is. Your neurological exam today was intact — you were alert, oriented, speech fluent, no motor deficits, coordination and gait normal. Your cardiovascular, respiratory, and abdominal exams were all unremarkable.
+
+Patient: What did the tests show?
+
+Doctor: Your labs showed a normal complete blood count, normal cholesterol and lipid profile, and renal function was within normal limits with a serum creatinine of 119 micromoles per liter. Your left kidney measured 9.6 by 4.8 centimeters on imaging — normal size. However, a renal Doppler ultrasound confirmed renal artery stenosis with a resistive index of 0.58. CT angiography showed 70% and 75% stenosis in the two branches of your left renal artery.
+
+Patient: What does that mean for my blood pressure?
+
+Doctor: The stenosis is causing your secondary hypertension — your kidney is sensing reduced flow and driving your blood pressure up. This explains why medications alone haven't been enough.
+
+Patient: So what's the plan?
+
+Doctor: We performed balloon angioplasty, but the stenosis persisted at the same percentages. You then underwent a second ballooning combined with stenting, which successfully achieved revascularization. We'll continue amlodipine and losartan post-procedure and monitor closely.
+
+Patient: Will my blood pressure finally come down now?
+
+Doctor: We expect significant improvement within a few weeks after revascularization. We'll repeat a renal Doppler in six weeks and adjust your medications accordingly. Please keep all follow-up appointments with the hypertension clinic.
+
+Patient: I understand, doctor. Thank you for explaining everything.

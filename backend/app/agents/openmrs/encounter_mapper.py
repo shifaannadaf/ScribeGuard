@@ -263,6 +263,7 @@ class OpenMRSEncounterMapperAgent:
         frequency: Optional[str],
         duration: Optional[str],
         indication: Optional[str],
+        authored_on: Optional[str] = None,
     ) -> dict[str, Any]:
         instructions_parts = [p for p in [dose, frequency, route, duration] if p]
         instruction_text = ", ".join(instructions_parts) or name
@@ -274,7 +275,7 @@ class OpenMRSEncounterMapperAgent:
             "encounter": {"reference": f"Encounter/{encounter_uuid}"},
             "requester": {"reference": f"Practitioner/{practitioner_uuid}"},
             "medicationCodeableConcept": {"text": name},
-            "authoredOn": _now_iso(),
+            "authoredOn": authored_on or _now_iso(),
             "reasonCode": [{"text": indication}] if indication else [],
             "dosageInstruction": [{
                 "text": instruction_text,

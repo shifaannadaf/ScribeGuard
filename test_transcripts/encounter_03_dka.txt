@@ -1,0 +1,47 @@
+Doctor: Good morning. I understand you were brought in by ambulance after you started vomiting blood and became disoriented at home. Can you tell me what happened?
+
+Patient: I remember feeling really sick for the past two days — nausea and this burning pain right in the middle of my upper stomach. Then I just started throwing up blood and I don't remember much after that.
+
+Doctor: Before we go further, do you or your family know of any allergies?
+
+Patient: Yes — I'm allergic to penicillin. I got it as a child and broke out in hives all over. And I'm allergic to contrast dye — I had a CT scan once and my face and neck swelled up.
+
+Doctor: Important — penicillin allergy causing urticaria, and iodinated contrast allergy causing angioedema. We'll premedicate if contrast is needed. Any other allergies?
+
+Patient: No, just those two.
+
+Doctor: What medications are you on?
+
+Patient: I'm on insulin glargine 20 units at bedtime and metformin 1000 milligrams twice a day for my diabetes. My diabetes has been poorly controlled for years, I'll be honest.
+
+Doctor: Any other medical history besides diabetes?
+
+Patient: I've had type 2 diabetes for about 12 years. I also have hypertension — I'm on lisinopril 10 milligrams once a day for that. And I had a peptic ulcer about three years ago.
+
+Doctor: On arrival, your vitals were critical. Blood pressure 82/50 mmHg — you were in shock. Heart rate 124 beats per minute. Respiratory rate 28 breaths per minute, temperature 38.4 degrees Celsius, and oxygen saturation 91% on room air. Weight 78 kilograms.
+
+Patient: That sounds really bad.
+
+Doctor: It was. Your labs showed blood glucose of 470 milligrams per deciliter. Arterial blood gas showed a pH of 7.2, PCO2 of 25.2 mmHg, bicarbonate 9.9 mEq/L — all consistent with a significant metabolic acidosis. Anion gap was 24.3, urinary ketones and glucose were both positive. These findings confirm diabetic ketoacidosis.
+
+Patient: And the vomiting blood?
+
+Doctor: We performed an emergency endoscopy and found black pigmentation throughout your entire esophageal mucosa. A CT scan showed circumferential edematous thickening of the esophageal wall with a small pleural effusion. We diagnosed you with acute esophageal necrosis — a rare but serious condition typically triggered by a combination of ischemia and the mucosal injury from your acid reflux.
+
+Patient: What have you been treating me with?
+
+Doctor: We intubated you for airway protection. You're receiving intravenous insulin infusion for glycemic control, cefepime 2 grams IV every 8 hours for infection coverage — we chose this instead of penicillin-based antibiotics given your allergy. You're also on pantoprazole 40 milligrams IV twice daily as a proton pump inhibitor, and we started plasmapheresis. You were extubated on day five.
+
+Patient: I still feel some chest pain and I've had fever.
+
+Doctor: Yes, on day seven imaging showed increased right pleural effusion and free air in the mediastinum, which raised concern for esophageal perforation. We took you to the operating room for emergency thoracoscopy. We found significant pleural effusion with pus and a perforation of the esophagus. The necrotic segment of thoracic esophagus was resected and drainage tubes were placed.
+
+Patient: What happens next for my recovery?
+
+Doctor: You'll remain NPO with nutrition via a jejunal feeding tube while the surgical repair heals. We'll continue close glycemic monitoring and transition you to subcutaneous insulin with tighter targets. Metformin will be held until your renal function is fully stable. Follow-up CT chest in two weeks to assess the drainage and healing.
+
+Patient: What about my diabetes going forward?
+
+Doctor: That's our top priority. We'll refer you to endocrinology for a comprehensive diabetes management plan before discharge. Tight glycemic control is essential to prevent another episode like this.
+
+Patient: I understand, doctor. Thank you.

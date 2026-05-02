@@ -230,6 +230,19 @@ export const getAuditTimeline = (id: string) =>
 export const listRegisteredAgents = () =>
   request<{ agents: RegisteredAgent[] }>(`/agents`)
 
+// ── OpenMRS patient search ────────────────────────────────────────────
+
+export interface OpenMRSPatient {
+  uuid: string
+  name: string
+  identifier: string
+  gender: string
+  birthDate: string
+}
+
+export const searchOpenMRSPatients = (q: string): Promise<OpenMRSPatient[]> =>
+  request<OpenMRSPatient[]>(`/openmrs/patients/search?q=${encodeURIComponent(q)}&limit=8`)
+
 // ── AI chat (legacy, kept for compatibility) ──────────────────────────
 
 export interface ChatMessage { role: "user" | "assistant"; content: string }

@@ -39,6 +39,7 @@ class EncounterListItem(BaseModel):
     patient_id:   str
     date:         str
     time:         str
+    created_at:   Optional[datetime] = None
     duration:     Optional[str]      = None
     status:       EncounterStatus
     processing_stage: ProcessingStage

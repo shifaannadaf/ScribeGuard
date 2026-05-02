@@ -53,6 +53,57 @@ def get_patient_by_identifier(identifier: str) -> dict:
     return data
 
 
+def search_patients(query: str, max_results: int = 10) -> list[dict]:
+    """
+    Search patients by name OR identifier.
+
+    Tries identifier first (exact OpenMRS ID like "10001YY"), then falls
+    back to name search. Returns a flat list:
+        [{"uuid", "name", "identifier", "gender", "birthDate"}, ...]
+    """
+    def _parse_bundle(bundle: dict) -> list[dict]:
+        patients = []
+        for entry in bundle.get("entry") or []:
+            res = entry.get("resource", {})
+            if res.get("resourceType") != "Patient":
+                continue
+            name_obj = (res.get("name") or [{}])[0]
+            given = " ".join(name_obj.get("given") or [])
+            family = name_obj.get("family", "")
+            identifier = ""
+            for ident in res.get("identifier") or []:
+                val = ident.get("value", "")
+                if val:
+                    identifier = val
+                    break
+            patients.append({
+                "uuid":       res.get("id", ""),
+                "name":       f"{given} {family}".strip(),
+                "identifier": identifier,
+                "gender":     res.get("gender", ""),
+                "birthDate":  res.get("birthDate", ""),
+            })
+        return patients
+
+    # Try exact identifier first, fall back to name search
+    results: list[dict] = []
+    try:
+        bundle = fhir_get("Patient", params={"identifier": query, "_count": max_results})
+        results = _parse_bundle(bundle)
+    except Exception:
+        pass
+
+    if not results:
+        try:
+            bundle = fhir_get("Patient", params={"name": query, "_count": max_results})
+            results = _parse_bundle(bundle)
+        except Exception:
+            pass
+
+    logger.info("Patient search '%s' → %d result(s)", query, len(results))
+    return results
+
+
 def get_patient_by_uuid(patient_uuid: str) -> dict:
     """
     READ — Fetch a single patient by their FHIR UUID.

@@ -83,7 +83,7 @@ class VitalSign(Base):
 
     kind        = Column(String(32),  nullable=False)                 # "height"|"weight"|"temperature"|"respiratory_rate"|"spo2"|"hr"|"systolic_bp"|"diastolic_bp"
     value       = Column(Float,       nullable=False)
-    unit        = Column(String(16),  nullable=True)
+    unit        = Column(String(64),  nullable=True)
     measured_at = Column(String(64),  nullable=True)                  # ISO when stated, else null
     confidence  = Column(String(16),  nullable=True)
     raw_text    = Column(String(255), nullable=True)

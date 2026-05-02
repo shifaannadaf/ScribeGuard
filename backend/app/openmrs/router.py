@@ -18,8 +18,8 @@ from pydantic import BaseModel
 import httpx
 
 from .metadata    import get_metadata
-from .patient     import search_patients, get_patient_by_identifier, get_patient_by_uuid
-from .encounter   import get_encounters, create_encounter
+from .patient     import get_patient_by_identifier, get_patient_by_uuid, search_patients
+from .encounter   import create_encounter
 from .allergy     import get_allergies, create_allergy, update_allergy, delete_allergy
 from .condition   import get_conditions, create_condition, update_condition, delete_condition
 from .observation import (
@@ -125,9 +125,14 @@ def route_metadata():
 # PATIENT
 # ===========================================================================
 
-@router.get("/patient", summary="Search patients by name or identifier")
-def route_patient_search(q: str):
-    return _run(search_patients, q)
+@router.get("/patients/search", summary="Search OpenMRS patients by name or identifier")
+def route_patient_search(q: str, limit: int = 10):
+    """Search by name (e.g. 'John') or OpenMRS ID (e.g. '10001YY'). Returns up to `limit` results."""
+    return _run(search_patients, q, limit)
+
+@router.get("/patient", summary="Search patient by OpenMRS identifier (e.g. 10001YY)")
+def route_patient_by_identifier(identifier: str):
+    return _run(get_patient_by_identifier, identifier)
 
 @router.get("/patient/{patient_uuid}", summary="Get patient by UUID")
 def route_patient_by_uuid(patient_uuid: str):
@@ -137,10 +142,6 @@ def route_patient_by_uuid(patient_uuid: str):
 # ===========================================================================
 # ENCOUNTER
 # ===========================================================================
-
-@router.get("/encounter", summary="Get encounters for a patient")
-def route_encounter_get(patient_uuid: str):
-    return _run(get_encounters, patient_uuid)
 
 @router.post("/encounter", summary="Create encounter")
 def route_encounter_create(body: CreateEncounterBody):

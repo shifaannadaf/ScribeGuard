@@ -27,6 +27,8 @@ class Medication(Base):
     source_section = Column(String(32),  nullable=False, default="plan")
     confidence     = Column(String(16),  nullable=True)   # "high" | "medium" | "low"
 
+    openmrs_resource_uuid = Column(String(64), nullable=True)
+
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
 
     encounter = relationship("Encounter", back_populates="medications")
