@@ -24,6 +24,17 @@ export interface Medication {
   start_date?: string
 }
 
+export interface PastMedication {
+  id?:        number
+  name:       string
+  dose?:      string
+  route?:     string
+  frequency?: string
+  start_date?: string
+  end_date?:   string
+  reason?:     string
+}
+
 export interface Allergy {
   id?:      number
   allergen: string
@@ -38,21 +49,43 @@ export interface Diagnosis {
   status?:      string
 }
 
+export interface Vitals {
+  height_cm?:               number
+  weight_kg?:               number
+  temperature_c?:           number
+  blood_pressure_systolic?:  number
+  blood_pressure_diastolic?: number
+  spo2_pct?:                number
+  resp_rate?:               number
+  pulse?:                   number
+}
+
 export interface EncounterDetail extends EncounterListItem {
-  openmrs_uuid: string | null
-  transcript:   string | null
-  created_at:   string
-  updated_at:   string
-  medications:  Medication[]
-  allergies:    Allergy[]
-  diagnoses:    Diagnosis[]
+  openmrs_uuid:     string | null
+  viewed:           boolean
+  transcript:       string | null
+  chief_complaint:  string | null
+  clinical_summary: string | null
+  plan:             string | null
+  vitals:           Vitals | null
+  created_at:       string
+  updated_at:       string
+  medications:      Medication[]
+  past_medications: PastMedication[]
+  allergies:        Allergy[]
+  diagnoses:        Diagnosis[]
 }
 
 export interface EncounterUpdate {
-  transcript?:  string
-  medications?: Medication[]
-  allergies?:   Allergy[]
-  diagnoses?:   Diagnosis[]
+  transcript?:       string
+  chief_complaint?:  string
+  clinical_summary?: string
+  plan?:             string
+  vitals?:           Vitals
+  medications?:      Medication[]
+  past_medications?: PastMedication[]
+  allergies?:        Allergy[]
+  diagnoses?:        Diagnosis[]
 }
 
 export interface ChatMessage {
@@ -89,13 +122,20 @@ export const revertEncounter = (id: string) =>
     `/encounters/${id}/revert`, { method: "PATCH" }
   )
 
+export const unpushEncounter = (id: string) =>
+  request<{ id: string; status: EncounterStatus; updated_at: string }>(
+    `/encounters/${id}/unpush`, { method: "PATCH" }
+  )
+
 export const deleteEncounter = (id: string) =>
   request<void>(`/encounters/${id}`, { method: "DELETE" })
 
 export const pushToOpenMRS = (id: string, openmrs_patient_uuid: string) =>
   request(`/encounters/${id}/push`, {
     method: "POST",
-    body: JSON.stringify({ openmrs_patient_uuid }),
+    body: JSON.stringify({ 
+      openmrs_patient_uuid: openmrs_patient_uuid || null  // Send null for new patients
+    }),
   })
 
 // ── AI Chat ───────────────────────────────────────────────────────────────────
@@ -110,10 +150,22 @@ export const sendChatMessage = (id: string, message: string, history: ChatMessag
 
 const BASE = "http://localhost:8000"
 
-export const createEncounter = async (patient_name: string, patient_id: string) => {
+export const getPatientStatus = (patient_id: string) =>
+  request<{ patient_type: "new" | "returning"; encounter_count: number; last_visit: string | null }>(
+    `/encounters/patient-status?patient_id=${encodeURIComponent(patient_id)}`
+  )
+
+export const createEncounter = async (
+  patient_name: string,
+  patient_id: string,
+  patient_type: "new" | "returning" = "new",
+  openmrs_uuid?: string,
+) => {
   const form = new FormData()
   form.append("patient_name", patient_name)
   form.append("patient_id", patient_id)
+  form.append("patient_type", patient_type)
+  if (openmrs_uuid) form.append("openmrs_uuid", openmrs_uuid)
   const res = await fetch(`${BASE}/encounters`, { method: "POST", body: form })
   if (!res.ok) throw new Error("Failed to create encounter")
   return res.json() as Promise<{ id: string; patient_name: string; patient_id: string }>

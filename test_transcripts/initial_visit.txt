@@ -1,0 +1,71 @@
+Doctor: Good morning! Please have a seat. I'm Dr. Johnson. What brings you in today?
+
+Patient: Hi doctor. I've been feeling really tired lately, and I'm always thirsty. I'm also going to the bathroom a lot more than usual, especially at night.
+
+Doctor: I see. How long have you been experiencing these symptoms?
+
+Patient: About two months now. At first I thought it was just stress from work, but it's getting worse.
+
+Doctor: Okay. Let me get some basic information first. Have you had any other symptoms? Any weight changes, blurred vision, or frequent infections?
+
+Patient: Yes, actually. I've lost about 15 pounds without trying, and my vision has been a bit blurry. I also had a skin infection on my foot that took forever to heal.
+
+Doctor: Alright. Do you have any existing medical conditions that you're being treated for?
+
+Patient: I have high blood pressure. I was diagnosed about 5 years ago. I also had asthma as a child but grew out of it.
+
+Doctor: What medications are you currently taking for the blood pressure?
+
+Patient: I take Lisinopril 10 milligrams once daily in the morning.
+
+Doctor: Good. And have you taken any other medications in the past that you're no longer taking?
+
+Patient: Yes, I used to take Hydrochlorothiazide 25 milligrams daily for my blood pressure, but my previous doctor stopped it about a year ago because my potassium was low. I also took Albuterol inhaler as needed when I was younger for asthma.
+
+Doctor: Thank you. Do you have any allergies to medications?
+
+Patient: Yes, I'm allergic to Penicillin. I get hives and swelling when I take it. I also have a mild allergy to Sulfa drugs - they give me a rash.
+
+Doctor: Important to know. Are your immunizations up to date? When was your last tetanus shot?
+
+Patient: I got a tetanus booster about 3 years ago after I stepped on a nail. I also got the flu shot last October, and I had my COVID vaccines - the initial series and one booster.
+
+Doctor: Excellent. Any family history of diabetes or other conditions?
+
+Patient: Yes, both my parents have Type 2 diabetes. My father also has heart disease.
+
+Doctor: That's important information. Let me check your vital signs now.
+
+[Takes vitals]
+
+Doctor: Okay, your blood pressure is 145 over 92, which is a bit elevated. Your heart rate is 78 beats per minute. Temperature is 98.6 Fahrenheit. Let me check your weight and height.
+
+Patient: Sure.
+
+Doctor: You're 5 feet 8 inches tall, that's 173 centimeters. Weight is 185 pounds. Your oxygen saturation is 98 percent on room air. Respiratory rate is 16 breaths per minute.
+
+Doctor: Based on your symptoms and family history, I'm concerned about diabetes. The excessive thirst, frequent urination, weight loss, and blurred vision are classic signs. I'd like to run some blood tests today.
+
+Patient: That makes sense. I was worried it might be diabetes.
+
+Doctor: Let me examine you quickly. [Performs physical exam] Everything looks okay except I notice some dry skin and the healing wound on your foot you mentioned. I'm going to diagnose you with suspected Type 2 Diabetes Mellitus pending lab confirmation. I'm also noting your Hypertension as it's not well controlled today.
+
+Patient: What do we do next?
+
+Doctor: Here's the plan. First, I'm ordering a comprehensive metabolic panel and a hemoglobin A1C test. These will confirm the diabetes diagnosis and show us your average blood sugar over the past few months. I'm also going to start you on Metformin 500 milligrams twice daily with meals for the diabetes. For your blood pressure, I'm increasing your Lisinopril to 20 milligrams daily since 145 over 92 is too high.
+
+Patient: Okay, I can do that.
+
+Doctor: I also want you to start monitoring your blood sugar at home. I'll write a prescription for a glucometer and test strips. Check your fasting blood sugar every morning. I'm also prescribing Atorvastatin 20 milligrams once daily at bedtime for cholesterol, since diabetes increases your cardiovascular risk.
+
+Patient: That sounds like a lot.
+
+Doctor: I know it seems overwhelming, but we need to get this under control. I'm also referring you to a nutritionist for diabetes education. You'll need to focus on a low-carb diet, increase physical activity - aim for 30 minutes of walking daily - and lose some weight. I'd like to see you back in two weeks to review your lab results and see how you're adjusting to the medications.
+
+Patient: Will I need insulin?
+
+Doctor: Not right now. We'll start with oral medication and lifestyle changes. If your blood sugars don't improve, we can discuss insulin later. Any questions?
+
+Patient: No, I think I understand. Thank you, doctor.
+
+Doctor: You're welcome. Make sure to schedule that follow-up appointment for two weeks. Take care.

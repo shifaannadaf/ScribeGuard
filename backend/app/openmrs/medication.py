@@ -2,6 +2,7 @@
 FHIR R4 Medication resource operations.
 
 Endpoints used:
+    POST   /MedicationRequest                   → create a drug order (shows in Active Medications)
     GET    /MedicationRequest?patient={uuid}    → list medication requests
     PATCH  /MedicationRequest/{uuid}            → update request (JSON Patch)
     GET    /MedicationDispense?patient={uuid}   → list medication dispenses
@@ -12,14 +13,109 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from .client import fhir_get, fhir_post, fhir_patch
-from .config import DEFAULT_MEDICATION_UUID, DEFAULT_SUPER_USER_UUID
+from .client import fhir_get, fhir_post, fhir_patch, rest_get, rest_post
+from .config import (DEFAULT_MEDICATION_UUID, DEFAULT_SUPER_USER_UUID,
+                     DEFAULT_LOCATION_UUID, DEFAULT_ENCOUNTER_TYPE_UUID,
+                     DEFAULT_VISIT_TYPE_UUID, DEFAULT_CARE_SETTING_UUID,
+                     DEFAULT_PROVIDER_UUID, DEFAULT_QUANTITY_UNITS_UUID)
 
 logger = logging.getLogger(__name__)
 
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+
+
+def _search_drug_concept(name: str) -> Optional[str]:
+    """Search OpenMRS for a drug concept UUID by name. Returns UUID or None."""
+    try:
+        # Try drug endpoint first
+        result = rest_get("drug", params={"q": name, "v": "default", "limit": 1})
+        if result.get("results"):
+            concept = result["results"][0].get("concept", {})
+            uuid = concept.get("uuid") if isinstance(concept, dict) else None
+            if uuid:
+                logger.info("Found drug concept for '%s': %s", name, uuid)
+                return uuid
+        # Fall back to concept search with Drug class
+        result = rest_get("concept", params={"q": name, "conceptClass": "Drug", "v": "default", "limit": 1})
+        if result.get("results"):
+            return result["results"][0].get("uuid")
+    except Exception as e:
+        logger.warning("Drug concept search failed for '%s': %s", name, e)
+    return None
+
+
+def create_medication_visit(patient_uuid: str) -> tuple[str, str]:
+    """
+    Get or create a visit + encounter for drug orders.
+    Reuses an existing active visit if one exists to avoid overlap errors.
+    Returns (visit_uuid, encounter_uuid).
+    """
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000+0000")
+
+    # Check for existing active (open) visit
+    existing = rest_get("visit", params={"patient": patient_uuid, "includeInactive": "false", "v": "default"})
+    active_visits = [v for v in existing.get("results", []) if not v.get("stopDatetime")]
+    if active_visits:
+        visit_uuid = active_visits[0]["uuid"]
+        logger.info("Reusing existing active visit %s", visit_uuid)
+    else:
+        visit = rest_post("visit", {
+            "patient":       patient_uuid,
+            "visitType":     DEFAULT_VISIT_TYPE_UUID,
+            "location":      DEFAULT_LOCATION_UUID,
+            "startDatetime": now,
+        })
+        visit_uuid = visit["uuid"]
+        logger.info("Created new visit %s for drug orders", visit_uuid)
+
+    enc = rest_post("encounter", {
+        "patient":           patient_uuid,
+        "encounterType":     DEFAULT_ENCOUNTER_TYPE_UUID,
+        "location":          DEFAULT_LOCATION_UUID,
+        "visit":             visit_uuid,
+        "encounterDatetime": now,
+    })
+    enc_uuid = enc["uuid"]
+    logger.info("Created encounter %s for drug orders", enc_uuid)
+    return visit_uuid, enc_uuid
+
+
+def create_drug_order(
+    patient_uuid: str,
+    encounter_uuid: str,
+    medication_name: str,
+    dose: str = "",
+    route: str = "",
+    frequency: str = "",
+) -> dict:
+    """
+    CREATE — Single drug order linked to an existing encounter.
+    Requires encounter_uuid from create_medication_visit().
+    """
+    concept_uuid = _search_drug_concept(medication_name)
+    if not concept_uuid:
+        raise ValueError(f"Drug concept not found for '{medication_name}'")
+
+    order_payload = {
+        "type":         "drugorder",
+        "action":       "NEW",
+        "patient":      patient_uuid,
+        "concept":      concept_uuid,
+        "encounter":    encounter_uuid,
+        "orderer":      DEFAULT_PROVIDER_UUID,
+        "careSetting":  DEFAULT_CARE_SETTING_UUID,
+        "urgency":      "ROUTINE",
+        "quantity":     1,
+        "numRefills":   0,
+        "dosingType":   "org.openmrs.FreeTextDosingInstructions",
+        "dosingInstructions": " ".join(filter(None, [dose, route, frequency])) or "As directed",
+    }
+
+    order = rest_post("order", order_payload)
+    logger.info("Created drug order '%s' → %s", medication_name, order.get("uuid"))
+    return order
 
 
 # ===========================================================================

@@ -28,7 +28,7 @@ class OpenMRSPatient(BaseModel):
 
 
 class PushRequest(BaseModel):
-    openmrs_patient_uuid: str
+    openmrs_patient_uuid: Optional[str] = None  # If None, creates new patient in OpenMRS
 
 
 class PushResponse(BaseModel):

@@ -18,6 +18,22 @@ class MedicationOut(MedicationIn):
     id: int
 
 
+class PastMedicationIn(BaseModel):
+    id:         Optional[int] = None
+    name:       str
+    dose:       Optional[str] = None
+    route:      Optional[str] = None
+    frequency:  Optional[str] = None
+    start_date: Optional[str] = None
+    end_date:   Optional[str] = None
+    reason:     Optional[str] = None
+
+
+class PastMedicationOut(PastMedicationIn):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+
+
 class AllergyIn(BaseModel):
     id:       Optional[int] = None
     allergen: str
@@ -40,6 +56,7 @@ class DiagnosisIn(BaseModel):
 class DiagnosisOut(DiagnosisIn):
     model_config = ConfigDict(from_attributes=True)
     id: int
+
 
 
 class EncounterListItem(BaseModel):
@@ -66,12 +83,21 @@ class EncounterDetail(BaseModel):
     openmrs_uuid: Optional[str]       = None
     duration:     Optional[str]       = None
     status:       EncounterStatus
+    viewed:       bool                = False
     transcript:   Optional[str]       = None
+    
+    # Extracted clinical data
+    chief_complaint:  Optional[str] = None
+    clinical_summary: Optional[str] = None
+    plan:             Optional[str] = None
+    vitals:           Optional[dict] = None
+    
     created_at:   datetime
     updated_at:   datetime
-    medications:  list[MedicationOut] = []
-    allergies:    list[AllergyOut]    = []
-    diagnoses:    list[DiagnosisOut]  = []
+    medications:      list[MedicationOut]     = []
+    past_medications: list[PastMedicationOut] = []
+    allergies:        list[AllergyOut]        = []
+    diagnoses:        list[DiagnosisOut]      = []
 
 
 class EncounterCreateResponse(BaseModel):
@@ -83,10 +109,15 @@ class EncounterCreateResponse(BaseModel):
 
 
 class EncounterUpdate(BaseModel):
-    transcript:  Optional[str]              = None
-    medications: Optional[list[MedicationIn]] = None
-    allergies:   Optional[list[AllergyIn]]    = None
-    diagnoses:   Optional[list[DiagnosisIn]]  = None
+    transcript:        Optional[str]                    = None
+    chief_complaint:   Optional[str]                    = None
+    clinical_summary:  Optional[str]                    = None
+    plan:              Optional[str]                    = None
+    vitals:            Optional[dict]                   = None
+    medications:       Optional[list[MedicationIn]]     = None
+    past_medications:  Optional[list[PastMedicationIn]] = None
+    allergies:         Optional[list[AllergyIn]]        = None
+    diagnoses:         Optional[list[DiagnosisIn]]      = None
 
 
 class EncounterStatusResponse(BaseModel):
