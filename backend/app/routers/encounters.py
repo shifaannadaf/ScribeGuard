@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.models import Encounter, EncounterStatus, ProcessingStage, AuditEvent
 from app.repositories import EncounterRepository
+from app.repositories.transcript_repo import TranscriptRepository
 from app.routers._dependencies import get_orchestrator
 from app.schemas.encounter import (
     EncounterCreate,
@@ -28,6 +29,7 @@ from app.schemas.encounter import (
     StatsResponse,
 )
 from app.schemas.pipeline import RunPipelineResponse
+from app.utils.text_extract import extract_text, is_audio
 
 
 router = APIRouter(prefix="/encounters", tags=["Encounters"])
@@ -124,6 +126,41 @@ def create_encounter_json(body: EncounterCreate, db: Session = Depends(get_db)):
     )
 
 
+# ── Bulk reset ─────────────────────────────────────────────────────────
+# IMPORTANT: this literal-path route must be declared BEFORE the
+# `/{encounter_id}` routes below, otherwise FastAPI will treat "reset"
+# as an encounter_id and 404.
+
+@router.post("/reset")
+def reset_encounters(
+    status: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    """Bulk-delete encounters.
+
+    - `?status=failed`  → delete only failed encounters
+    - `?status=pushed`  → delete only encounters already submitted to OpenMRS
+    - no `status` param → delete ALL encounters
+
+    Cascades remove every dependent artifact (transcripts, soap_notes,
+    medications, audit_events, etc.) via the FK ON DELETE CASCADE constraints.
+    """
+    valid = {s.value for s in EncounterStatus}
+    if status is not None and status not in valid:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown status '{status}'. Use one of {sorted(valid)} or omit.",
+        )
+
+    q = db.query(Encounter)
+    if status:
+        q = q.filter(Encounter.status == EncounterStatus(status))
+
+    deleted = q.delete(synchronize_session=False)
+    db.commit()
+    return {"deleted": int(deleted), "status": status}
+
+
 @router.get("/{encounter_id}", response_model=EncounterDetail)
 def get_encounter(encounter_id: str, db: Session = Depends(get_db)):
     enc = EncounterRepository(db).get_or_404(encounter_id)
@@ -183,6 +220,131 @@ async def intake_audio(
         final_stage=outcome.final_stage.value,
         status=enc.status.value,
         transcript_id=outcome.transcript_id,
+        soap_note_id=outcome.soap_note_id,
+        medications_extracted=outcome.medications_extracted,
+        duration_ms=outcome.duration_ms,
+        errors=outcome.errors,
+    )
+
+
+# ── Import transcript (any file) ────────────────────────────────────────
+
+@router.post("/{encounter_id}/import-transcript", response_model=RunPipelineResponse)
+async def import_transcript(
+    encounter_id: str,
+    file: UploadFile = File(...),
+    auto_run: bool = True,
+    db: Session = Depends(get_db),
+    orchestrator = Depends(get_orchestrator),
+):
+    """Import a transcript from any text-bearing file.
+
+    Supported formats: plain text, Markdown, JSON, .srt / .vtt subtitles,
+    HTML, PDF (via pypdf), DOCX (via python-docx). If an audio file is
+    uploaded here, it transparently routes through the existing intake
+    + transcription flow.
+
+    When `auto_run=true` the SOAP and medication-extraction agents run
+    immediately on the imported transcript; physician review and OpenMRS
+    submission remain explicit downstream actions.
+    """
+    enc = EncounterRepository(db).get_or_404(encounter_id)
+    data = await file.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+    # Audio files: defer to the existing intake + transcription pipeline so
+    # we don't need to duplicate the transcription path.
+    if is_audio(file.filename, file.content_type):
+        await orchestrator.run_agent(
+            "EncounterIntakeAgent", enc, actor="physician",
+            payload={
+                "audio_bytes":    data,
+                "audio_filename": file.filename or "imported-audio",
+                "audio_mime":     file.content_type or "audio/webm",
+            },
+        )
+        if not auto_run:
+            return RunPipelineResponse(
+                encounter_id=enc.id,
+                final_stage=enc.processing_stage.value,
+                status=enc.status.value,
+                duration_ms=0.0,
+                errors=[],
+            )
+        outcome = await orchestrator.run_pipeline(enc, actor="physician")
+        return RunPipelineResponse(
+            encounter_id=enc.id,
+            final_stage=outcome.final_stage.value,
+            status=enc.status.value,
+            transcript_id=outcome.transcript_id,
+            soap_note_id=outcome.soap_note_id,
+            medications_extracted=outcome.medications_extracted,
+            duration_ms=outcome.duration_ms,
+            errors=outcome.errors,
+        )
+
+    # Text-bearing file: extract, persist as a Transcript, advance stage,
+    # then run only the post-transcription agents.
+    try:
+        text = extract_text(filename=file.filename, content_type=file.content_type, data=data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    text = (text or "").strip()
+    if len(text) < 10:
+        raise HTTPException(
+            status_code=400,
+            detail="Could not extract any meaningful text from the uploaded file.",
+        )
+
+    enc_repo = EncounterRepository(db)
+    txn_repo = TranscriptRepository(db)
+    transcript = txn_repo.create(
+        encounter_id=enc.id,
+        raw_text=text,
+        formatted_text=text,
+        duration_seconds=None,
+        model=f"imported:{(file.filename or 'upload')}",
+        quality_score=None,
+        quality_issues=[],
+    )
+    enc_repo.set_processing_stage(enc, ProcessingStage.transcribed)
+    db.add(AuditEvent(
+        encounter_id=enc.id,
+        event_type="transcript.imported",
+        agent_name=None,
+        actor="physician",
+        summary=f"Imported transcript from {file.filename or 'upload'} ({len(text)} chars)",
+        payload={
+            "transcript_id":   transcript.id,
+            "source_filename": file.filename,
+            "source_mime":     file.content_type,
+            "char_count":      len(text),
+            "word_count":      len(text.split()),
+        },
+    ))
+    db.commit()
+
+    if not auto_run:
+        return RunPipelineResponse(
+            encounter_id=enc.id,
+            final_stage=enc.processing_stage.value,
+            status=enc.status.value,
+            transcript_id=transcript.id,
+            duration_ms=0.0,
+            errors=[],
+        )
+
+    outcome = await orchestrator.run_pipeline(
+        enc, actor="physician",
+        start_from="ClinicalNoteGenerationAgent",
+    )
+    return RunPipelineResponse(
+        encounter_id=enc.id,
+        final_stage=outcome.final_stage.value,
+        status=enc.status.value,
+        transcript_id=transcript.id,
         soap_note_id=outcome.soap_note_id,
         medications_extracted=outcome.medications_extracted,
         duration_ms=outcome.duration_ms,

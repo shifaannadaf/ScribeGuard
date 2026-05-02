@@ -2,8 +2,12 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Search, Filter, Clock, FileText, AlertTriangle, Send, ShieldCheck,
+  Trash2, RotateCcw,
 } from 'lucide-react'
-import { listEncounters, type EncounterListItem, type EncounterStatus } from '../api/encounters'
+import {
+  listEncounters, deleteEncounter, resetEncounters,
+  type EncounterListItem, type EncounterStatus,
+} from '../api/encounters'
 
 const STATUS_FILTERS: Array<{ value: '' | EncounterStatus; label: string }> = [
   { value: '',         label: 'All' },
@@ -19,19 +23,60 @@ export default function History() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<'' | EncounterStatus>('')
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const [resetting, setResetting] = useState(false)
+
+  const reload = () =>
+    listEncounters({ status: status || undefined, search: search || undefined })
+      .then(r => setItems(r.data))
 
   useEffect(() => {
     setLoading(true)
-    listEncounters({ status: status || undefined, search: search || undefined })
-      .then(r => setItems(r.data))
-      .finally(() => setLoading(false))
+    reload().finally(() => setLoading(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, search])
+
+  async function handleDelete(e: React.MouseEvent, id: string, label: string) {
+    e.stopPropagation()
+    if (!confirm(`Delete encounter "${label}"? This cannot be undone.`)) return
+    setBusyId(id)
+    try {
+      await deleteEncounter(id)
+      setItems(prev => prev.filter(i => i.id !== id))
+    } catch (err: any) {
+      alert(`Delete failed: ${err.message ?? err}`)
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function handleReset(scope: 'failed' | 'pushed' | 'approved' | 'pending' | 'all') {
+    const verb = scope === 'all' ? 'delete ALL encounters' : `delete every "${scope}" encounter`
+    if (!confirm(`Are you sure you want to ${verb}? This cannot be undone.`)) return
+    setResetting(true)
+    try {
+      const res = await resetEncounters(scope === 'all' ? undefined : scope)
+      await reload()
+      alert(`Removed ${res.deleted} encounter${res.deleted === 1 ? '' : 's'}.`)
+    } catch (err: any) {
+      alert(`Reset failed: ${err.message ?? err}`)
+    } finally {
+      setResetting(false)
+    }
+  }
 
   return (
     <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div>
-        <h1 className="page-title">Encounters</h1>
-        <p className="page-subtitle">All encounters with their pipeline state, SOAP review status, and OpenMRS submission.</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+        <div>
+          <h1 className="page-title">Encounters</h1>
+          <p className="page-subtitle">All encounters with their pipeline state, SOAP review status, and OpenMRS submission.</p>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <ResetButton label="Clear failed"   onClick={() => handleReset('failed')}   disabled={resetting} tone="danger" />
+          <ResetButton label="Clear submitted" onClick={() => handleReset('pushed')}   disabled={resetting} tone="muted" />
+          <ResetButton label="Clear all"      onClick={() => handleReset('all')}      disabled={resetting} tone="danger-strong" />
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -83,11 +128,11 @@ export default function History() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {items.map(it => (
-          <button key={it.id}
+          <div key={it.id}
             onClick={() => navigate(`/encounters/${it.id}`)}
             style={{
               display: 'grid',
-              gridTemplateColumns: '1.5fr 1fr 1fr 1.2fr auto',
+              gridTemplateColumns: '1.5fr 1fr 1fr 1.2fr auto auto',
               gap: 10,
               alignItems: 'center',
               padding: '0.75rem 1rem',
@@ -122,10 +167,54 @@ export default function History() {
             <span style={{ fontSize: 11, color: '#9ca3af', textAlign: 'right' }}>
               stage: <code>{it.processing_stage}</code>
             </span>
-          </button>
+            <button
+              onClick={(e) => handleDelete(e, it.id, `${it.patient_name} (${it.patient_id})`)}
+              disabled={busyId === it.id}
+              title="Delete this encounter"
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                width: 30, height: 30,
+                background: 'transparent',
+                border: '1px solid var(--border-color, #2a2d3a)',
+                borderRadius: 8,
+                color: busyId === it.id ? '#6b7280' : '#fca5a5',
+                cursor: busyId === it.id ? 'wait' : 'pointer',
+              }}
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
         ))}
       </div>
     </div>
+  )
+}
+
+function ResetButton({
+  label, onClick, disabled, tone,
+}: {
+  label: string
+  onClick: () => void
+  disabled?: boolean
+  tone: 'danger' | 'danger-strong' | 'muted'
+}) {
+  const palette = tone === 'danger-strong'
+    ? { bg: 'rgba(239,68,68,0.18)', fg: '#fca5a5', border: 'rgba(239,68,68,0.5)' }
+    : tone === 'danger'
+    ? { bg: 'rgba(239,68,68,0.10)', fg: '#fca5a5', border: 'rgba(239,68,68,0.35)' }
+    : { bg: 'transparent',          fg: '#9ca3af', border: 'var(--border-color, #2a2d3a)' }
+  return (
+    <button onClick={onClick} disabled={disabled}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        padding: '6px 12px', fontSize: 12, fontWeight: 600,
+        background: palette.bg, color: palette.fg,
+        border: `1px solid ${palette.border}`, borderRadius: 8,
+        cursor: disabled ? 'wait' : 'pointer', opacity: disabled ? 0.6 : 1,
+      }}
+    >
+      <RotateCcw size={13} /> {label}
+    </button>
   )
 }
 

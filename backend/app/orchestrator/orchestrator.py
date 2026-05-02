@@ -242,11 +242,16 @@ class AgentOrchestrator:
         encounter: Encounter,
         *,
         actor: str = "system",
+        start_from: Optional[str] = None,
     ) -> OrchestratorOutcome:
         """Run intake → transcription → SOAP → medication extraction in order.
 
         Stops short of physician review (which is a manual gate) and
         OpenMRS submission (which only happens after explicit approval).
+
+        `start_from` lets callers skip earlier steps — e.g. when a transcript
+        was imported directly, set start_from="ClinicalNoteGenerationAgent"
+        to run only SOAP and medication extraction.
         """
         outcome = OrchestratorOutcome(
             encounter_id=encounter.id,
@@ -255,7 +260,13 @@ class AgentOrchestrator:
         )
         t0 = time.perf_counter()
         repo = None
+        started = start_from is None
         for step in DEFAULT_PIPELINE:
+            if not started:
+                if step.agent_name == start_from:
+                    started = True
+                else:
+                    continue
             try:
                 # Move into the pre-stage so the UI can show "transcribing", etc.
                 ctx_repo_session = AgentContext(db=self.db, encounter=encounter)

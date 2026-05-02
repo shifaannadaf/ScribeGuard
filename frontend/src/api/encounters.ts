@@ -57,6 +57,16 @@ export const getStats = () =>
 export const deleteEncounter = (id: string) =>
   request<void>(`/encounters/${id}`, { method: "DELETE" })
 
+/** Bulk-delete encounters. Pass `status` to limit the reset to one bucket
+ *  (e.g. "failed" or "pushed"); omit it to delete every encounter. */
+export const resetEncounters = (status?: "pending" | "approved" | "pushed" | "failed") => {
+  const qs = status ? `?status=${encodeURIComponent(status)}` : ""
+  return request<{ deleted: number; status: string | null }>(
+    `/encounters/reset${qs}`,
+    { method: "POST" },
+  )
+}
+
 export const createEncounter = async (
   patient_name: string,
   patient_id: string,
@@ -91,6 +101,25 @@ export const intakeAudio = async (
   const res = await fetch(url, { method: "POST", body: form })
   if (!res.ok) {
     let detail: string = "Intake failed"
+    try { detail = (await res.json()).detail ?? detail } catch { /* */ }
+    throw new ApiError(detail, res.status)
+  }
+  return (await res.json()) as RunPipelineResponse
+}
+
+// ── Transcript import (any file: txt / md / pdf / docx / srt / vtt / json / html / audio) ──
+
+export const importTranscript = async (
+  id: string,
+  file: File,
+  opts?: { autoRun?: boolean },
+) => {
+  const form = new FormData()
+  form.append("file", file, file.name)
+  const url = `${API_BASE}/encounters/${id}/import-transcript?auto_run=${opts?.autoRun !== false}`
+  const res = await fetch(url, { method: "POST", body: form })
+  if (!res.ok) {
+    let detail = "Transcript import failed"
     try { detail = (await res.json()).detail ?? detail } catch { /* */ }
     throw new ApiError(detail, res.status)
   }

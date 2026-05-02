@@ -2,15 +2,16 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   FileText, Clock, CheckCircle2, Mic, Square, X, Loader2, Check,
-  Activity, ShieldAlert, AlertCircle,
+  Activity, ShieldAlert, AlertCircle, Upload,
 } from 'lucide-react'
 import {
-  createEncounter, getStats, intakeAudio, listRegisteredAgents,
+  createEncounter, getStats, importTranscript, intakeAudio, listRegisteredAgents,
   type DashboardStats, type RegisteredAgent,
 } from '../api/encounters'
+import { useLiveCaption } from '../hooks/useLiveCaption'
 import './Dashboard.css'
 
-type RecordState = 'idle' | 'setup' | 'recording' | 'processing'
+type RecordState = 'idle' | 'setup' | 'recording' | 'processing' | 'import-setup'
 type Step = { label: string; status: 'pending' | 'active' | 'done' | 'failed'; agent?: string }
 
 const PIPELINE_STEPS: { agent: string; label: string }[] = [
@@ -35,11 +36,16 @@ export default function Dashboard() {
   const [elapsed, setElapsed]         = useState(0)
   const [steps, setSteps]             = useState<Step[]>([])
   const [error, setError]             = useState<string | null>(null)
+  const [importFile, setImportFile]   = useState<File | null>(null)
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef        = useRef<Blob[]>([])
   const timerRef         = useRef<ReturnType<typeof setInterval> | null>(null)
   const streamRef        = useRef<MediaStream | null>(null)
+
+  // Live captions via the browser Web Speech API. Runs alongside the
+  // server-side Whisper pipeline; UX-only, never used for SOAP generation.
+  const caption = useLiveCaption()
 
   const reload = () => getStats().then(setStats).catch(() => {})
   useEffect(() => { reload() }, [])
@@ -59,6 +65,8 @@ export default function Dashboard() {
       setElapsed(0)
       timerRef.current = setInterval(() => setElapsed(s => s + 1), 1000)
       setRecState('recording')
+      caption.reset()
+      caption.start()
     } catch {
       setError('Microphone access denied. Please allow microphone permissions and try again.')
     }
@@ -73,6 +81,7 @@ export default function Dashboard() {
     if (!mr) return
     if (timerRef.current) clearInterval(timerRef.current)
     streamRef.current?.getTracks().forEach(t => t.stop())
+    caption.stop()
 
     setSteps(PIPELINE_STEPS.map((s, i) => ({ label: s.label, agent: s.agent, status: i === 0 ? 'active' : 'pending' })))
     setRecState('processing')
@@ -115,7 +124,44 @@ export default function Dashboard() {
   function cancelSetup() {
     setRecState('idle')
     setPatientName(''); setPatientId(''); setOpenmrsUuid('')
+    setImportFile(null)
     setError(null)
+  }
+
+  async function importTranscriptFlow() {
+    if (!patientName.trim() || !patientId.trim() || !importFile) return
+    setError(null)
+
+    setSteps([
+      { label: 'Importing transcript',                          agent: 'Import',                       status: 'active'  },
+      { label: 'Drafting SOAP (Note Generation Agent)',         agent: 'ClinicalNoteGenerationAgent',  status: 'pending' },
+      { label: 'Extracting medications (Medication Agent)',     agent: 'MedicationExtractionAgent',    status: 'pending' },
+    ])
+    setRecState('processing')
+
+    try {
+      const enc = await createEncounter(patientName.trim(), patientId.trim(), openmrsUuid || undefined)
+      setStep('Import', 'done')
+      setStep('ClinicalNoteGenerationAgent', 'active')
+
+      const result = await importTranscript(enc.id, importFile, { autoRun: true })
+
+      if ((result.errors || []).length > 0) {
+        setStep('ClinicalNoteGenerationAgent', 'failed')
+        setStep('MedicationExtractionAgent', 'failed')
+        setError(result.errors.join(' · '))
+        setRecState('idle')
+        return
+      }
+      setStep('ClinicalNoteGenerationAgent', 'done')
+      setStep('MedicationExtractionAgent', 'done')
+      reload()
+      setTimeout(() => navigate(`/encounters/${enc.id}`), 500)
+    } catch (e: any) {
+      setError(e.message ?? 'Transcript import failed')
+      setRecState('idle')
+      setSteps([])
+    }
   }
 
   const cards = [
@@ -160,6 +206,11 @@ export default function Dashboard() {
                 <Mic size={36} className="icon" />
                 <span className="label">Record Encounter</span>
               </button>
+              <button onClick={() => setRecState('import-setup')} className="action-button primary"
+                style={{ background: 'rgba(99,102,241,0.10)', borderColor: 'rgba(99,102,241,0.45)' }}>
+                <Upload size={36} className="icon" />
+                <span className="label">Import Transcript</span>
+              </button>
               <div style={{
                 padding: '1rem',
                 background: 'rgba(255,255,255,0.02)',
@@ -181,6 +232,52 @@ export default function Dashboard() {
                   </span>
                 ))}
               </div>
+            </div>
+          )}
+
+          {recState === 'import-setup' && (
+            <div className="setup-panel">
+              <div className="setup-header">
+                <span className="setup-title">Import Transcript</span>
+                <button onClick={cancelSetup} className="icon-button"><X size={16} /></button>
+              </div>
+              <div className="form-group">
+                <label className="input-label">Patient Name</label>
+                <input type="text" value={patientName} onChange={e => setPatientName(e.target.value)}
+                  placeholder="e.g. John Doe" autoFocus className="input-field" />
+              </div>
+              <div className="form-group">
+                <label className="input-label">Patient ID</label>
+                <input type="text" value={patientId} onChange={e => setPatientId(e.target.value)}
+                  placeholder="e.g. P-00123" className="input-field" />
+              </div>
+              <div className="form-group">
+                <label className="input-label">OpenMRS Patient UUID <span style={{ opacity: 0.6 }}>(optional)</span></label>
+                <input type="text" value={openmrsUuid} onChange={e => setOpenmrsUuid(e.target.value)}
+                  placeholder="auto-resolved if omitted" className="input-field" />
+              </div>
+              <div className="form-group">
+                <label className="input-label">
+                  Transcript File <span style={{ opacity: 0.6 }}>(any format — txt, md, pdf, docx, srt, vtt, json, html, audio…)</span>
+                </label>
+                <input type="file"
+                  onChange={e => setImportFile(e.target.files?.[0] ?? null)}
+                  className="input-field"
+                  style={{ padding: 8 }}
+                />
+                {importFile && (
+                  <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 6 }}>
+                    Selected: <strong>{importFile.name}</strong> · {(importFile.size / 1024).toFixed(1)} KB
+                    {importFile.type ? ` · ${importFile.type}` : ''}
+                  </p>
+                )}
+              </div>
+              {error && <p className="error-text">{error}</p>}
+              <button onClick={importTranscriptFlow}
+                disabled={!patientName.trim() || !patientId.trim() || !importFile}
+                className="btn btn-primary" style={{ marginTop: '0.5rem' }}>
+                <Upload size={15} /> Import & Run Pipeline
+              </button>
             </div>
           )}
 
@@ -221,7 +318,52 @@ export default function Dashboard() {
                 <span className="recording-status">Recording…</span>
               </div>
               <p className="patient-info">{patientName} · {patientId}</p>
-              <button onClick={stopRecording} className="btn btn-secondary">
+
+              {/* Live captions (browser Web Speech API). Quality is rough — the
+                  canonical transcript still comes from the backend pipeline. */}
+              <div style={{
+                marginTop: 12, padding: '12px 14px',
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid var(--border-color, #2a2d3a)',
+                borderRadius: 10,
+                minHeight: 96, maxHeight: 180, overflowY: 'auto',
+                fontSize: 13, lineHeight: 1.55,
+                color: 'var(--text-strong, #e5e7eb)',
+                width: '100%', maxWidth: 680,
+              }}>
+                <div style={{
+                  display: 'flex', justifyContent: 'space-between',
+                  fontSize: 11, color: '#9ca3af', marginBottom: 6,
+                  textTransform: 'uppercase', letterSpacing: 0.5,
+                }}>
+                  <span>Live Caption {!caption.isSupported && '(unsupported in this browser)'}</span>
+                  {caption.isSupported && (
+                    <span style={{ color: '#86efac' }}>● live</span>
+                  )}
+                </div>
+                {caption.error && (
+                  <p style={{ color: '#fca5a5', fontSize: 12, margin: '0 0 6px' }}>
+                    Caption error: {caption.error}
+                  </p>
+                )}
+                {!caption.transcript && !caption.interim && caption.isSupported && (
+                  <p style={{ color: '#6b7280', fontStyle: 'italic', margin: 0 }}>
+                    Listening… start speaking and words will appear here.
+                  </p>
+                )}
+                {(caption.transcript || caption.interim) && (
+                  <p style={{ margin: 0 }}>
+                    <span>{caption.transcript}</span>
+                    {caption.interim && (
+                      <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>
+                        {' '}{caption.interim}
+                      </span>
+                    )}
+                  </p>
+                )}
+              </div>
+
+              <button onClick={stopRecording} className="btn btn-secondary" style={{ marginTop: 12 }}>
                 <Square size={14} style={{ fill: 'currentColor' }} /> Stop & Run Pipeline
               </button>
             </div>
