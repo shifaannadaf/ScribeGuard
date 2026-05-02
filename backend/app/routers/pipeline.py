@@ -1,135 +1,134 @@
-from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+"""
+Pipeline orchestration endpoints.
+
+These mirror what the auto-pipeline does, but expose individual stages so
+operators / debug tools can drive the pipeline a step at a time.
+"""
+from __future__ import annotations
+
+from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.models.models import Encounter, Medication, PastMedication, Allergy, Diagnosis, AuditLog
-from app.schemas.misc import TranscribeResponse, GenerateResponse
-from app.whisper_service import transcribe_audio
-from app.gpt_service import generate_note, format_transcript
+from app.repositories import EncounterRepository, AgentRunRepository
+from app.routers._dependencies import get_orchestrator
+from app.schemas.pipeline import (
+    AgentRunOut,
+    GenerateSoapResponse,
+    PipelineStatus,
+    RunPipelineResponse,
+    TranscribeResponse,
+)
+
 
 router = APIRouter(prefix="/encounters", tags=["Pipeline"])
 
 
-def _log(db: Session, encounter_id: str, action: str):
-    db.add(AuditLog(encounter_id=encounter_id, action=action, actor="guest"))
+# ── End-to-end ──────────────────────────────────────────────────────────
 
+@router.post("/{encounter_id}/run", response_model=RunPipelineResponse)
+async def run_full_pipeline(
+    encounter_id: str,
+    db: Session = Depends(get_db),
+    orchestrator = Depends(get_orchestrator),
+):
+    enc = EncounterRepository(db).get_or_404(encounter_id)
+    outcome = await orchestrator.run_pipeline(enc, actor="physician")
+    return RunPipelineResponse(
+        encounter_id=enc.id,
+        final_stage=outcome.final_stage.value,
+        status=enc.status.value,
+        transcript_id=outcome.transcript_id,
+        soap_note_id=outcome.soap_note_id,
+        medications_extracted=outcome.medications_extracted,
+        duration_ms=outcome.duration_ms,
+        errors=outcome.errors,
+    )
+
+
+# ── Per-stage agents ────────────────────────────────────────────────────
 
 @router.post("/{encounter_id}/transcribe", response_model=TranscribeResponse)
-async def transcribe(
+async def run_transcription(
     encounter_id: str,
-    audio: UploadFile = File(...),
+    audio: UploadFile = File(default=None),
     db: Session = Depends(get_db),
+    orchestrator = Depends(get_orchestrator),
 ):
-    enc = db.get(Encounter, encounter_id)
-    if not enc:
-        raise HTTPException(status_code=404, detail="Encounter not found")
+    enc = EncounterRepository(db).get_or_404(encounter_id)
+    payload = {}
+    if audio is not None:
+        content = await audio.read()
+        payload = {
+            "audio_bytes":    content,
+            "audio_filename": audio.filename,
+            "audio_mime":     audio.content_type or "audio/webm",
+        }
+        await orchestrator.run_agent("EncounterIntakeAgent", enc, actor="physician", payload=payload)
 
-    transcript, duration = await transcribe_audio(audio)
-    formatted = await format_transcript(transcript)
-
-    enc.transcript = formatted
-    enc.duration = duration
-    enc.audio_filename = audio.filename
-    enc.updated_at = datetime.now(timezone.utc)
-    _log(db, enc.id, "transcribed")
-    db.commit()
-
-    return TranscribeResponse(id=enc.id, transcript=enc.transcript, duration=enc.duration)
-
-
-@router.post("/{encounter_id}/format", response_model=TranscribeResponse)
-async def format_encounter(encounter_id: str, db: Session = Depends(get_db)):
-    """Format a raw text transcript with Doctor/Patient labels."""
-    enc = db.get(Encounter, encounter_id)
-    if not enc:
-        raise HTTPException(status_code=404, detail="Encounter not found")
-
-    if not enc.transcript or not enc.transcript.strip():
-        return TranscribeResponse(id=enc.id, transcript="", duration=enc.duration or "")
-
-    enc.transcript = await format_transcript(enc.transcript)
-    enc.updated_at = datetime.now(timezone.utc)
-    _log(db, enc.id, "formatted")
-    db.commit()
-
-    return TranscribeResponse(id=enc.id, transcript=enc.transcript, duration=enc.duration or "")
+    result = await orchestrator.run_agent("TranscriptionAgent", enc, actor="physician")
+    return TranscribeResponse(
+        encounter_id=enc.id,
+        transcript_id=int(result.summary.get("transcript_id", 0)),
+        text=(result.output or {}).get("text", ""),
+        duration_seconds=result.summary.get("duration_seconds"),
+        quality_score=result.summary.get("quality_score"),
+        quality_issues=result.summary.get("quality_issues") or [],
+    )
 
 
-@router.post("/{encounter_id}/generate", response_model=GenerateResponse)
-async def generate(encounter_id: str, db: Session = Depends(get_db)):
-    enc = db.get(Encounter, encounter_id)
-    if not enc:
-        raise HTTPException(status_code=404, detail="Encounter not found")
-    if not enc.transcript:
-        raise HTTPException(status_code=400, detail="Transcribe the encounter first")
+@router.post("/{encounter_id}/generate-soap", response_model=GenerateSoapResponse)
+async def run_soap_generation(
+    encounter_id: str,
+    db: Session = Depends(get_db),
+    orchestrator = Depends(get_orchestrator),
+):
+    enc = EncounterRepository(db).get_or_404(encounter_id)
+    result = await orchestrator.run_agent("ClinicalNoteGenerationAgent", enc, actor="physician")
+    output = result.output or {}
+    # After generating the note, also run the medication extraction agent so
+    # the UI receives the full review-ready bundle in one round-trip.
+    med_result = await orchestrator.run_agent("MedicationExtractionAgent", enc, actor="physician")
+    return GenerateSoapResponse(
+        encounter_id=enc.id,
+        soap_note_id=int(result.summary.get("soap_note_id", 0)),
+        subjective=output.get("subjective", ""),
+        objective=output.get("objective", ""),
+        assessment=output.get("assessment", ""),
+        plan=output.get("plan", ""),
+        medications_extracted=int(med_result.summary.get("count", 0)),
+        low_confidence_sections=result.summary.get("low_confidence_sections") or [],
+    )
 
-    extracted = await generate_note(enc.transcript)
 
-    # Clear existing data
-    db.query(Medication).filter(Medication.encounter_id == encounter_id).delete()
-    db.query(PastMedication).filter(PastMedication.encounter_id == encounter_id).delete()
-    db.query(Allergy).filter(Allergy.encounter_id == encounter_id).delete()
-    db.query(Diagnosis).filter(Diagnosis.encounter_id == encounter_id).delete()
+@router.post("/{encounter_id}/extract-medications")
+async def run_medication_extraction(
+    encounter_id: str,
+    db: Session = Depends(get_db),
+    orchestrator = Depends(get_orchestrator),
+):
+    enc = EncounterRepository(db).get_or_404(encounter_id)
+    result = await orchestrator.run_agent("MedicationExtractionAgent", enc, actor="physician")
+    return {"encounter_id": enc.id, **result.summary}
 
 
-    # Save text fields
-    enc.chief_complaint = extracted.get("chief_complaint", "")
-    enc.clinical_summary = extracted.get("clinical_summary", "")
-    enc.plan = extracted.get("plan", "")
-    enc.vitals = extracted.get("vitals", {})
+# ── Status / inspection ────────────────────────────────────────────────
 
-    # Save medications (active)
-    for m in extracted.get("active_medications", []):
-        db.add(Medication(
-            encounter_id=enc.id,
-            name=m.get("name", ""),
-            dose=m.get("dose", ""),
-            route=m.get("route", ""),
-            frequency=m.get("frequency", ""),
-            start_date=m.get("start_date", ""),
-        ))
-
-    # Save past medications
-    for pm in extracted.get("past_medications", []):
-        db.add(PastMedication(
-            encounter_id=enc.id,
-            name=pm.get("name", ""),
-            dose=pm.get("dose", ""),
-            route=pm.get("route", ""),
-            frequency=pm.get("frequency", ""),
-            start_date=pm.get("start_date", ""),
-            end_date=pm.get("end_date", ""),
-            reason=pm.get("reason_stopped", ""),
-        ))
-    
-    # Save allergies
-    for a in extracted.get("allergies", []):
-        db.add(Allergy(
-            encounter_id=enc.id,
-            allergen=a.get("allergen", ""),
-            reaction=a.get("reaction", ""),
-            severity=a.get("severity", ""),
-        ))
-    
-    # Save diagnoses
-    for d in extracted.get("diagnoses", []):
-        db.add(Diagnosis(
-            encounter_id=enc.id,
-            icd10_code=d.get("icd10_code", ""),
-            description=d.get("description", ""),
-            status=d.get("status", ""),
-        ))
-    
-
-    enc.updated_at = datetime.now(timezone.utc)
-    _log(db, enc.id, "note_generated")
-    db.commit()
-    db.refresh(enc)
-
-    return GenerateResponse(
-        id=enc.id,
-        medications=extracted.get("medications", []),
-        allergies=extracted.get("allergies", []),
-        diagnoses=extracted.get("diagnoses", []),
+@router.get("/{encounter_id}/pipeline", response_model=PipelineStatus)
+def get_pipeline_status(encounter_id: str, db: Session = Depends(get_db)):
+    enc = EncounterRepository(db).get_or_404(encounter_id)
+    runs = AgentRunRepository(db).for_encounter(encounter_id)
+    return PipelineStatus(
+        encounter_id=enc.id,
+        processing_stage=enc.processing_stage.value,
+        status=enc.status.value,
+        last_error=enc.last_error,
+        has_audio=bool(enc.audio_path),
+        has_transcript=bool(enc.latest_transcript),
+        has_soap_note=enc.current_soap_note is not None,
+        has_approval=any(
+            n.status.value == "approved" for n in enc.soap_notes
+        ),
+        submitted=enc.status.value == "pushed",
+        agent_runs=[AgentRunOut.model_validate(r) for r in runs],
     )

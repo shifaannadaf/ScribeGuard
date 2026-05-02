@@ -1,17 +1,24 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileText, Clock, CheckCircle2, Layers, Mic, Upload, Square, X, Loader2, Check, Search } from 'lucide-react'
-import { getStats, createEncounter, transcribeAudio, generateNote, formatEncounter, getPatientStatus, type Stats } from '../api/encounters'
-import { searchPatients, type OpenMRSPatient } from '../api/openmrs'
+import {
+  FileText, Clock, CheckCircle2, Mic, Square, X, Loader2, Check,
+  Activity, ShieldAlert, AlertCircle, Upload,
+} from 'lucide-react'
+import {
+  createEncounter, getStats, importTranscript, intakeAudio, listRegisteredAgents,
+  type DashboardStats, type RegisteredAgent,
+} from '../api/encounters'
+import { useLiveCaption } from '../hooks/useLiveCaption'
+import './Dashboard.css'
 
-type RecordState = 'idle' | 'setup' | 'recording' | 'processing'
-type Step = { label: string; status: 'pending' | 'active' | 'done' }
+type RecordState = 'idle' | 'setup' | 'recording' | 'processing' | 'import-setup'
+type Step = { label: string; status: 'pending' | 'active' | 'done' | 'failed'; agent?: string }
 
-const PREVIEW_LINES = [
-  { speaker: 'Doctor',  text: 'How long have you been experiencing this pain?' },
-  { speaker: 'Patient', text: 'It started about three days ago, mostly in the lower back.' },
-  { speaker: 'Doctor',  text: 'Does it radiate down your leg at all?' },
-  { speaker: 'Patient', text: 'Sometimes, yes — on the right side.' },
+const PIPELINE_STEPS: { agent: string; label: string }[] = [
+  { agent: 'EncounterIntakeAgent',         label: 'Validating audio (Intake Agent)' },
+  { agent: 'TranscriptionAgent',           label: 'Transcribing (Transcription Agent)' },
+  { agent: 'ClinicalNoteGenerationAgent',  label: 'Drafting SOAP (Note Generation Agent)' },
+  { agent: 'MedicationExtractionAgent',    label: 'Extracting medications (Medication Agent)' },
 ]
 
 function fmtTime(s: number) {
@@ -20,29 +27,29 @@ function fmtTime(s: number) {
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const [stats, setStats]             = useState<Stats | null>(null)
+  const [stats, setStats]             = useState<DashboardStats | null>(null)
+  const [agents, setAgents]           = useState<RegisteredAgent[]>([])
   const [recState, setRecState]       = useState<RecordState>('idle')
-  const [patientName,    setPatientName]    = useState('')
-  const [patientId,      setPatientId]      = useState('')
-  const [elapsed,        setElapsed]        = useState(0)
-  const [steps,          setSteps]          = useState<Step[]>([])
-  const [error,          setError]          = useState<string | null>(null)
-  const [omrsQuery,      setOmrsQuery]      = useState('')
-  const [omrsPatient,    setOmrsPatient]    = useState<OpenMRSPatient | null>(null)
-  const [omrsResults,    setOmrsResults]    = useState<OpenMRSPatient[]>([])
-  const [omrsSearching,  setOmrsSearching]  = useState(false)
-  const [omrsError,      setOmrsError]      = useState<string | null>(null)
-  const [patientType,    setPatientType]    = useState<'new' | 'returning' | null>(null)
-  const [encounterCount, setEncounterCount] = useState(0)
-  const [lastVisit,      setLastVisit]      = useState<string | null>(null)
-  const [importedFile,   setImportedFile]   = useState<{ name: string; content: string } | null>(null)
+  const [patientName, setPatientName] = useState('')
+  const [patientId, setPatientId]     = useState('')
+  const [openmrsUuid, setOpenmrsUuid] = useState('')
+  const [elapsed, setElapsed]         = useState(0)
+  const [steps, setSteps]             = useState<Step[]>([])
+  const [error, setError]             = useState<string | null>(null)
+  const [importFile, setImportFile]   = useState<File | null>(null)
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef        = useRef<Blob[]>([])
   const timerRef         = useRef<ReturnType<typeof setInterval> | null>(null)
   const streamRef        = useRef<MediaStream | null>(null)
 
-  useEffect(() => { getStats().then(setStats).catch(() => {}) }, [])
+  // Live captions via the browser Web Speech API. Runs alongside the
+  // server-side Whisper pipeline; UX-only, never used for SOAP generation.
+  const caption = useLiveCaption()
+
+  const reload = () => getStats().then(setStats).catch(() => {})
+  useEffect(() => { reload() }, [])
+  useEffect(() => { listRegisteredAgents().then(r => setAgents(r.agents)).catch(() => {}) }, [])
 
   async function startRecording() {
     if (!patientName.trim() || !patientId.trim()) return
@@ -51,59 +58,62 @@ export default function Dashboard() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
       chunksRef.current = []
-
       const mr = new MediaRecorder(stream)
       mediaRecorderRef.current = mr
       mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data) }
       mr.start(250)
-
       setElapsed(0)
       timerRef.current = setInterval(() => setElapsed(s => s + 1), 1000)
       setRecState('recording')
+      caption.reset()
+      caption.start()
     } catch {
       setError('Microphone access denied. Please allow microphone permissions and try again.')
     }
   }
 
-  function updateStep(i: number, s: Step['status']) {
-    setSteps(prev => prev.map((step, idx) => idx === i ? { ...step, status: s } : step))
+  function setStep(agent: string, status: Step['status']) {
+    setSteps(prev => prev.map(s => s.agent === agent ? { ...s, status } : s))
   }
 
   async function stopRecording() {
     const mr = mediaRecorderRef.current
     if (!mr) return
-    timerRef.current && clearInterval(timerRef.current)
+    if (timerRef.current) clearInterval(timerRef.current)
     streamRef.current?.getTracks().forEach(t => t.stop())
+    caption.stop()
 
-    setSteps([
-      { label: 'Creating encounter',   status: 'active'  },
-      { label: 'Transcribing audio',   status: 'pending' },
-      { label: 'Generating SOAP note', status: 'pending' },
-    ])
+    setSteps(PIPELINE_STEPS.map((s, i) => ({ label: s.label, agent: s.agent, status: i === 0 ? 'active' : 'pending' })))
     setRecState('processing')
 
     mr.onstop = async () => {
       try {
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
+        const enc = await createEncounter(patientName.trim(), patientId.trim(), openmrsUuid || undefined)
 
-        const enc = await createEncounter(
-          patientName.trim(),
-          patientId.trim(),
-          patientType ?? 'new',
-          omrsPatient?.uuid,
-        )
-        updateStep(0, 'done'); updateStep(1, 'active')
+        const promise = intakeAudio(enc.id, blob, { autoRun: true })
 
-        await transcribeAudio(enc.id, blob)
-        updateStep(1, 'done'); updateStep(2, 'active')
+        // Visual progression heuristic until promise resolves
+        let i = 0
+        const tick = setInterval(() => {
+          i = Math.min(i + 1, PIPELINE_STEPS.length - 1)
+          PIPELINE_STEPS.forEach((s, idx) => setStep(s.agent, idx < i ? 'done' : idx === i ? 'active' : 'pending'))
+        }, 1100)
 
-        await generateNote(enc.id)
-        updateStep(2, 'done')
+        const result = await promise
+        clearInterval(tick)
 
-        getStats().then(setStats).catch(() => {})
-        setTimeout(() => navigate(`/notes/${enc.id}`), 600)
+        if ((result.errors || []).length > 0) {
+          PIPELINE_STEPS.forEach(s => setStep(s.agent, 'failed'))
+          setError(result.errors.join(' · '))
+          setRecState('idle')
+          return
+        }
+        PIPELINE_STEPS.forEach(s => setStep(s.agent, 'done'))
+        reload()
+        setTimeout(() => navigate(`/encounters/${enc.id}`), 500)
       } catch (e: any) {
-        setError(e.message ?? 'Something went wrong. Please try again.')
+        setError(e.message ?? 'Pipeline failed')
         setRecState('idle')
         setSteps([])
       }
@@ -217,266 +227,297 @@ export default function Dashboard() {
 
   function cancelSetup() {
     setRecState('idle')
-    setPatientName('')
-    setPatientId('')
-    setOmrsQuery('')
-    setOmrsPatient(null)
-    setOmrsResults([])
-    setOmrsError(null)
-    setPatientType(null)
-    setEncounterCount(0)
-    setLastVisit(null)
-    setImportedFile(null)
-    setError(null)
+    setPatientName(''); setPatientId(''); setOpenmrsUuid('')
+    setImportFile(null)
     setError(null)
   }
 
+  async function importTranscriptFlow() {
+    if (!patientName.trim() || !patientId.trim() || !importFile) return
+    setError(null)
+
+    setSteps([
+      { label: 'Importing transcript',                          agent: 'Import',                       status: 'active'  },
+      { label: 'Drafting SOAP (Note Generation Agent)',         agent: 'ClinicalNoteGenerationAgent',  status: 'pending' },
+      { label: 'Extracting medications (Medication Agent)',     agent: 'MedicationExtractionAgent',    status: 'pending' },
+    ])
+    setRecState('processing')
+
+    try {
+      const enc = await createEncounter(patientName.trim(), patientId.trim(), openmrsUuid || undefined)
+      setStep('Import', 'done')
+      setStep('ClinicalNoteGenerationAgent', 'active')
+
+      const result = await importTranscript(enc.id, importFile, { autoRun: true })
+
+      if ((result.errors || []).length > 0) {
+        setStep('ClinicalNoteGenerationAgent', 'failed')
+        setStep('MedicationExtractionAgent', 'failed')
+        setError(result.errors.join(' · '))
+        setRecState('idle')
+        return
+      }
+      setStep('ClinicalNoteGenerationAgent', 'done')
+      setStep('MedicationExtractionAgent', 'done')
+      reload()
+      setTimeout(() => navigate(`/encounters/${enc.id}`), 500)
+    } catch (e: any) {
+      setError(e.message ?? 'Transcript import failed')
+      setRecState('idle')
+      setSteps([])
+    }
+  }
+
   const cards = [
-    { label: 'Notes Today',       value: stats?.notes_today       ?? '—', icon: FileText,    color: 'text-blue-400',   bg: 'bg-blue-500/10'   },
-    { label: 'Pending Review',    value: stats?.pending_review    ?? '—', icon: Clock,       color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
-    { label: 'Pushed to OpenMRS', value: stats?.pushed_to_openmrs ?? '—', icon: CheckCircle2,color: 'text-green-400',  bg: 'bg-green-500/10'  },
-    { label: 'Total Transcripts', value: stats?.total_transcripts ?? '—', icon: Layers,      color: 'text-purple-400', bg: 'bg-purple-500/10' },
+    { label: 'Notes Today',       value: stats?.notes_today       ?? '—', icon: FileText,    colorClass: 'stat-blue'   },
+    { label: 'Pending Review',    value: stats?.pending_review    ?? '—', icon: Clock,       colorClass: 'stat-yellow' },
+    { label: 'Pushed to OpenMRS', value: stats?.pushed_to_openmrs ?? '—', icon: CheckCircle2,colorClass: 'stat-green'  },
+    { label: 'Failed',            value: stats?.failed            ?? '—', icon: ShieldAlert, colorClass: 'stat-purple' },
   ]
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="dashboard-container">
 
-      <div className="p-8 pb-6 shrink-0">
-        <h1 className="text-white text-2xl font-semibold mb-1">Dashboard</h1>
-        <p className="text-gray-500 text-sm mb-6">Welcome back. Here's your activity at a glance.</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          {cards.map(({ label, value, icon: Icon, color, bg }) => (
-            <div key={label} className="bg-gray-900 border border-gray-800 rounded-xl p-5 flex items-center gap-4">
-              <div className={`${bg} rounded-lg p-3 shrink-0`}><Icon size={22} className={color} /></div>
+      <div className="page-header">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <h1 className="page-title">Agentic Workspace</h1>
+            <p className="page-subtitle">Record an encounter — autonomous agents will produce a physician-reviewed SOAP note.</p>
+          </div>
+          <button onClick={() => navigate('/history')} className="btn btn-primary" style={{ background: 'var(--success)' }}>
+            <FileText size={16} /> Open Encounter History
+          </button>
+        </div>
+        <div className="dashboard-stats-grid" style={{ marginTop: '1.5rem' }}>
+          {cards.map(({ label, value, icon: Icon, colorClass }) => (
+            <div key={label} className={`glass-card stat-card ${colorClass}`}>
+              <div className="stat-icon-wrapper"><Icon size={22} /></div>
               <div>
-                <p className="text-gray-400 text-sm">{label}</p>
-                <p className="text-white text-2xl font-bold mt-0.5">{value}</p>
+                <p className="stat-label">{label}</p>
+                <p className="stat-value">{value}</p>
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="flex-1 mx-8 mb-8 bg-gray-900 border border-gray-800 rounded-xl flex flex-col overflow-hidden">
-
-        {/* Controls */}
-        <div className="flex flex-col items-center justify-center gap-4 py-8 border-b border-gray-800">
-
+      <div className="dashboard-main-area glass-panel">
+        {/* Recording controls */}
+        <div className="recording-controls">
           {recState === 'idle' && (
-            <div className="flex items-center gap-12">
-              <button onClick={() => setRecState('setup')} className="flex flex-col items-center gap-2 group cursor-pointer">
-                <Mic size={36} className="text-blue-400 group-hover:text-blue-300 transition-colors duration-150" />
-                <span className="text-gray-400 group-hover:text-gray-200 text-xs transition-colors duration-150">Record</span>
+            <div className="action-buttons-row">
+              <button onClick={() => setRecState('setup')} className="action-button primary">
+                <Mic size={36} className="icon" />
+                <span className="label">Record Encounter</span>
               </button>
-              <label className="flex flex-col items-center gap-2 group cursor-pointer">
-  <Upload size={36} className="text-gray-500 group-hover:text-gray-300 transition-colors duration-150" />
-  <span className="text-gray-500 group-hover:text-gray-300 text-xs transition-colors duration-150">
-    Import
-  </span>
+              <button onClick={() => setRecState('import-setup')} className="action-button primary"
+                style={{ background: 'rgba(99,102,241,0.10)', borderColor: 'rgba(99,102,241,0.45)' }}>
+                <Upload size={36} className="icon" />
+                <span className="label">Import Transcript</span>
+              </button>
+              <div style={{
+                padding: '1rem',
+                background: 'rgba(255,255,255,0.02)',
+                border: '1px solid var(--border-color, #2a2d3a)',
+                borderRadius: 12,
+                fontSize: 12,
+                color: 'var(--text-muted, #9ca3af)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+                width: 280,
+              }}>
+                <strong style={{ color: 'var(--text-strong, #e5e7eb)' }}>Active Agents</strong>
+                {agents.length === 0 ? (
+                  <span>Loading registry…</span>
+                ) : agents.map(a => (
+                  <span key={a.name} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Activity size={11} /> {a.name} <code style={{ opacity: 0.65 }}>v{a.version}</code>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
-  <input
-    type="file"
-    accept=".txt"
-    className="hidden"
-    onChange={handleFileImport}
-  />
-</label>
- 
+          {recState === 'import-setup' && (
+            <div className="setup-panel">
+              <div className="setup-header">
+                <span className="setup-title">Import Transcript</span>
+                <button onClick={cancelSetup} className="icon-button"><X size={16} /></button>
+              </div>
+              <div className="form-group">
+                <label className="input-label">Patient Name</label>
+                <input type="text" value={patientName} onChange={e => setPatientName(e.target.value)}
+                  placeholder="e.g. John Doe" autoFocus className="input-field" />
+              </div>
+              <div className="form-group">
+                <label className="input-label">Patient ID</label>
+                <input type="text" value={patientId} onChange={e => setPatientId(e.target.value)}
+                  placeholder="e.g. P-00123" className="input-field" />
+              </div>
+              <div className="form-group">
+                <label className="input-label">OpenMRS Patient UUID <span style={{ opacity: 0.6 }}>(optional)</span></label>
+                <input type="text" value={openmrsUuid} onChange={e => setOpenmrsUuid(e.target.value)}
+                  placeholder="auto-resolved if omitted" className="input-field" />
+              </div>
+              <div className="form-group">
+                <label className="input-label">
+                  Transcript File <span style={{ opacity: 0.6 }}>(any format — txt, md, pdf, docx, srt, vtt, json, html, audio…)</span>
+                </label>
+                <input type="file"
+                  onChange={e => setImportFile(e.target.files?.[0] ?? null)}
+                  className="input-field"
+                  style={{ padding: 8 }}
+                />
+                {importFile && (
+                  <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 6 }}>
+                    Selected: <strong>{importFile.name}</strong> · {(importFile.size / 1024).toFixed(1)} KB
+                    {importFile.type ? ` · ${importFile.type}` : ''}
+                  </p>
+                )}
+              </div>
+              {error && <p className="error-text">{error}</p>}
+              <button onClick={importTranscriptFlow}
+                disabled={!patientName.trim() || !patientId.trim() || !importFile}
+                className="btn btn-primary" style={{ marginTop: '0.5rem' }}>
+                <Upload size={15} /> Import & Run Pipeline
+              </button>
             </div>
           )}
 
           {recState === 'setup' && (
-            <div className="w-full max-w-sm px-4 flex flex-col gap-4">
-              <div className="flex items-center justify-between">
-                <p className="text-white text-sm font-semibold">New Recording</p>
-                <button onClick={cancelSetup} className="text-gray-600 hover:text-white transition-colors cursor-pointer"><X size={16} /></button>
+            <div className="setup-panel">
+              <div className="setup-header">
+                <span className="setup-title">New Encounter</span>
+                <button onClick={cancelSetup} className="icon-button"><X size={16} /></button>
               </div>
-
-              {/* OpenMRS search */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-gray-500 text-xs uppercase tracking-wider">Search OpenMRS</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text" value={omrsQuery}
-                    onChange={e => { setOmrsQuery(e.target.value); setOmrsError(null); setOmrsResults([]); setOmrsPatient(null) }}
-                    onKeyDown={e => e.key === 'Enter' && searchOmrs()}
-                    placeholder="Name or ID (e.g. Atharv or 10001PE)" autoFocus
-                    className="flex-1 bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-600 text-sm rounded-lg px-3 py-2.5 outline-none focus:border-blue-600 transition-colors duration-150"
-                  />
-                  <button onClick={searchOmrs} disabled={omrsSearching || !omrsQuery.trim()}
-                    className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white px-3 rounded-lg transition-colors duration-150 cursor-pointer">
-                    {omrsSearching ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
-                  </button>
-                </div>
-                {omrsError && <p className="text-red-400 text-xs">{omrsError}</p>}
+              <div className="form-group">
+                <label className="input-label">Patient Name</label>
+                <input type="text" value={patientName} onChange={e => setPatientName(e.target.value)}
+                  placeholder="e.g. John Doe" autoFocus className="input-field" />
               </div>
-
-              {/* Multiple results dropdown */}
-              {omrsResults.length > 0 && (
-                <div className="flex flex-col gap-1">
-                  {omrsResults.map(p => (
-                    <button key={p.uuid} onClick={() => selectOmrsPatient(p)}
-                      className="text-left bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg px-3 py-2 transition-colors cursor-pointer">
-                      <p className="text-gray-200 text-sm font-medium">{p.name}</p>
-                      <p className="text-gray-500 text-xs">{p.identifier} · {p.gender?.toUpperCase() ?? '—'} · {p.birthdate ?? '—'}</p>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* Patient confirmed + type badge */}
-              {omrsPatient && (
-                <div className="flex flex-col gap-2">
-                  <div className="bg-green-500/10 border border-green-500/30 rounded-lg px-3 py-2.5 flex items-center gap-3">
-                    <CheckCircle2 size={16} className="text-green-400 shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-green-300 text-sm font-medium truncate">{omrsPatient.name}</p>
-                      <p className="text-green-500 text-xs">{omrsPatient.identifier} · {omrsPatient.gender?.toUpperCase() ?? '—'} · {omrsPatient.birthdate ?? '—'}</p>
-                    </div>
-                  </div>
-                  {patientType && (
-                    <div className={`rounded-lg px-3 py-2 flex items-center gap-2 ${
-                      patientType === 'returning'
-                        ? 'bg-blue-500/10 border border-blue-500/20'
-                        : 'bg-purple-500/10 border border-purple-500/20'
-                    }`}>
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                        patientType === 'returning'
-                          ? 'bg-blue-500/20 text-blue-300'
-                          : 'bg-purple-500/20 text-purple-300'
-                      }`}>
-                        {patientType === 'returning' ? 'Returning Patient' : 'New Patient'}
-                      </span>
-                      {patientType === 'returning' && encounterCount > 0 && (
-                        <span className="text-gray-500 text-xs">
-                          {encounterCount} prior visit{encounterCount !== 1 ? 's' : ''} in ScribeGuard
-                          {lastVisit && ` · last ${new Date(lastVisit).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
-                        </span>
-                      )}
-                      {patientType === 'returning' && encounterCount === 0 && (
-                        <span className="text-gray-500 text-xs">Registered in OpenMRS</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="border-t border-gray-800" />
-
-              {/* Manual fields */}
-              <div className="flex flex-col gap-3">
-                {importedFile && (
-                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <FileText size={14} className="text-blue-400" />
-                      <span className="text-blue-300 text-xs font-medium">{importedFile.name}</span>
-                    </div>
-                  </div>
-                )}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-gray-500 text-xs uppercase tracking-wider">Patient Name</label>
-                  <input type="text" value={patientName} onChange={e => setPatientName(e.target.value)}
-                    placeholder="e.g. John Doe"
-                    className="bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-600 text-sm rounded-lg px-3 py-2.5 outline-none focus:border-blue-600 transition-colors duration-150" />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-gray-500 text-xs uppercase tracking-wider">Patient ID</label>
-                  <input type="text" value={patientId} onChange={e => setPatientId(e.target.value)}
-                    placeholder="e.g. P-00123"
-                    onKeyDown={e => e.key === 'Enter' && (importedFile ? handleImportSubmit() : startRecording())}
-                    className="bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-600 text-sm rounded-lg px-3 py-2.5 outline-none focus:border-blue-600 transition-colors duration-150" />
-                </div>
+              <div className="form-group">
+                <label className="input-label">Patient ID</label>
+                <input type="text" value={patientId} onChange={e => setPatientId(e.target.value)}
+                  placeholder="e.g. P-00123" className="input-field" />
               </div>
-
-              {error && <p className="text-red-400 text-xs">{error}</p>}
-              <button 
-                onClick={importedFile ? handleImportSubmit : startRecording} 
-                disabled={!patientName.trim() || !patientId.trim()}
-                className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors duration-150 cursor-pointer">
-                {importedFile ? (
-                  <>
-                    <Upload size={15} /> Import & Process
-                  </>
-                ) : (
-                  <>
-                    <Mic size={15} /> Start Recording
-                  </>
-                )}
+              <div className="form-group">
+                <label className="input-label">OpenMRS Patient UUID <span style={{ opacity: 0.6 }}>(optional)</span></label>
+                <input type="text" value={openmrsUuid} onChange={e => setOpenmrsUuid(e.target.value)}
+                  placeholder="auto-resolved if omitted" className="input-field" />
+              </div>
+              {error && <p className="error-text">{error}</p>}
+              <button onClick={startRecording} disabled={!patientName.trim() || !patientId.trim()}
+                className="btn btn-danger" style={{ marginTop: '0.5rem' }}>
+                <Mic size={15} /> Start Recording
               </button>
             </div>
           )}
 
           {recState === 'recording' && (
-            <div className="flex flex-col items-center gap-3">
-              <div className="flex items-center gap-3">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-                <span className="text-white font-mono text-lg font-semibold">{fmtTime(elapsed)}</span>
-                <span className="text-gray-500 text-sm">Recording…</span>
+            <div className="recording-active-panel">
+              <div className="timer-display">
+                <div className="recording-dot" />
+                <span className="timer-text">{fmtTime(elapsed)}</span>
+                <span className="recording-status">Recording…</span>
               </div>
-              <p className="text-gray-600 text-xs">{patientName} · {patientId}</p>
-              <button onClick={stopRecording}
-                className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors duration-150 cursor-pointer mt-1">
-                <Square size={14} className="fill-current" /> Stop Recording
+              <p className="patient-info">{patientName} · {patientId}</p>
+
+              {/* Live captions (browser Web Speech API). Quality is rough — the
+                  canonical transcript still comes from the backend pipeline. */}
+              <div style={{
+                marginTop: 12, padding: '12px 14px',
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid var(--border-color, #2a2d3a)',
+                borderRadius: 10,
+                minHeight: 96, maxHeight: 180, overflowY: 'auto',
+                fontSize: 13, lineHeight: 1.55,
+                color: 'var(--text-strong, #e5e7eb)',
+                width: '100%', maxWidth: 680,
+              }}>
+                <div style={{
+                  display: 'flex', justifyContent: 'space-between',
+                  fontSize: 11, color: '#9ca3af', marginBottom: 6,
+                  textTransform: 'uppercase', letterSpacing: 0.5,
+                }}>
+                  <span>Live Caption {!caption.isSupported && '(unsupported in this browser)'}</span>
+                  {caption.isSupported && (
+                    <span style={{ color: '#86efac' }}>● live</span>
+                  )}
+                </div>
+                {caption.error && (
+                  <p style={{ color: '#fca5a5', fontSize: 12, margin: '0 0 6px' }}>
+                    Caption error: {caption.error}
+                  </p>
+                )}
+                {!caption.transcript && !caption.interim && caption.isSupported && (
+                  <p style={{ color: '#6b7280', fontStyle: 'italic', margin: 0 }}>
+                    Listening… start speaking and words will appear here.
+                  </p>
+                )}
+                {(caption.transcript || caption.interim) && (
+                  <p style={{ margin: 0 }}>
+                    <span>{caption.transcript}</span>
+                    {caption.interim && (
+                      <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>
+                        {' '}{caption.interim}
+                      </span>
+                    )}
+                  </p>
+                )}
+              </div>
+
+              <button onClick={stopRecording} className="btn btn-secondary" style={{ marginTop: 12 }}>
+                <Square size={14} style={{ fill: 'currentColor' }} /> Stop & Run Pipeline
               </button>
             </div>
           )}
 
           {recState === 'processing' && (
-            <div className="flex flex-col gap-3 w-64">
+            <div className="processing-panel">
               {steps.map((step, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <div className="w-5 h-5 shrink-0 flex items-center justify-center">
-                    {step.status === 'done'    && <Check size={16} className="text-green-400" />}
-                    {step.status === 'active'  && <Loader2 size={16} className="text-blue-400 animate-spin" />}
-                    {step.status === 'pending' && <div className="w-1.5 h-1.5 rounded-full bg-gray-700" />}
+                <div key={i} className="processing-step">
+                  <div className="step-icon-container">
+                    {step.status === 'done'   && <Check size={16} className="step-done" />}
+                    {step.status === 'active' && <Loader2 size={16} className="step-active" />}
+                    {step.status === 'failed' && <AlertCircle size={16} color="#ef4444" />}
+                    {step.status === 'pending' && <div className="step-pending-dot" />}
                   </div>
-                  <span className={`text-sm ${step.status === 'active' ? 'text-white' : step.status === 'done' ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {step.label}
-                  </span>
+                  <span className={`step-label ${step.status}`}>{step.label}</span>
                 </div>
               ))}
             </div>
           )}
-
         </div>
 
-        {/* Preview panel */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="flex items-center gap-2 mb-5">
-            <span className={`w-2 h-2 rounded-full ${recState === 'recording' ? 'bg-red-500 animate-pulse' : 'bg-gray-700'}`} />
-            <span className="text-gray-400 text-xs uppercase tracking-widest">
-              {recState === 'recording' ? 'Recording in progress' : 'Transcription Preview'}
-            </span>
+        {/* Agent overview */}
+        <div className="preview-panel">
+          <div className="preview-header">
+            <span className="recording-dot" style={{ background: 'var(--bg-surface-elevated)', boxShadow: 'none' }} />
+            <span className="preview-title">How ScribeGuard's agents collaborate</span>
           </div>
-
-          {recState === 'recording' ? (
-            <div className="flex flex-col items-center justify-center h-32 gap-3">
-              <div className="flex items-end gap-1 h-8">
-                {[3,5,8,5,9,4,7,5,3,6,8,4].map((h, i) => (
-                  <div key={i} className="w-1 bg-blue-500/60 rounded-full animate-pulse"
-                    style={{ height: `${h * 4}px`, animationDelay: `${i * 80}ms` }} />
-                ))}
-              </div>
-              <p className="text-gray-500 text-xs">Transcript will appear after processing</p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-4">
-              {PREVIEW_LINES.map(({ speaker, text }, i) => (
-                <div key={i} className="flex gap-3">
-                  <span className={`text-xs font-semibold w-14 shrink-0 pt-0.5 ${speaker === 'Doctor' ? 'text-blue-400' : 'text-gray-500'}`}>
-                    {speaker}
-                  </span>
-                  <p className="text-gray-300 text-sm leading-relaxed">{text}</p>
-                </div>
-              ))}
-              <div className="flex gap-3">
-                <span className="text-xs font-semibold w-14 shrink-0 pt-0.5 text-blue-400">Doctor</span>
-                <p className="text-gray-500 text-sm italic">Listening<span className="animate-pulse">...</span></p>
-              </div>
-            </div>
-          )}
+          <div style={{
+            padding: 16, display: 'flex', flexDirection: 'column', gap: 10,
+            color: 'var(--text-strong, #e5e7eb)', fontSize: 13, lineHeight: 1.55,
+          }}>
+            <p>
+              When you click <strong>Stop</strong>, ScribeGuard runs an end-to-end agent pipeline on the server.
+              Each step is a focused, autonomous agent persisted as an audited <code>agent_run</code>:
+            </p>
+            <ol style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <li><strong>Encounter Intake Agent</strong> — validates &amp; stores audio</li>
+              <li><strong>Transcription Agent</strong> — Whisper + cleanup + quality flags</li>
+              <li><strong>Clinical Note Generation Agent</strong> — GPT-4 SOAP under engineered prompt</li>
+              <li><strong>Medication Extraction Agent</strong> — structured drugs from Plan</li>
+              <li><strong>Physician Review Agent</strong> — your edits + explicit approval</li>
+              <li><strong>OpenMRS Integration Agent</strong> — FHIR write-back &amp; verification</li>
+              <li><strong>Audit &amp; Traceability Agent</strong> — durable audit trail</li>
+            </ol>
+            <p style={{ color: '#9ca3af', fontSize: 12 }}>
+              No SOAP note is committed without your explicit approval.
+            </p>
+          </div>
         </div>
-
       </div>
     </div>
   )

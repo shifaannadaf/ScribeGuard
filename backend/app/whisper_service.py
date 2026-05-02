@@ -1,20 +1,18 @@
-import time
-from openai import AsyncOpenAI
-from app.config import settings
+"""DEPRECATED — superseded by app.clients.openai_client and app.agents.transcription.
 
-client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+Retained as a thin shim so any external import keeps working.
+"""
+from app.clients.openai_client import openai_client
 
 
 async def transcribe_audio(audio) -> tuple[str, str]:
-    """Returns (transcript_text, duration_string)."""
-    t0 = time.monotonic()
+    """Backward-compat helper kept so legacy code paths don't break."""
     contents = await audio.read()
-    result = await client.audio.transcriptions.create(
-        model="whisper-1",
-        file=(audio.filename, contents, audio.content_type),
+    result = await openai_client.transcribe(
+        filename=getattr(audio, "filename", "recording.webm"),
+        content=contents,
+        content_type=getattr(audio, "content_type", "audio/webm"),
     )
-    elapsed = time.monotonic() - t0
-    minutes = int(elapsed // 60)
-    seconds = int(elapsed % 60)
-    duration = f"{minutes}m {seconds:02d}s" if minutes else f"{seconds}s"
-    return result.text, duration
+    duration = result.duration_seconds or 0.0
+    m, s = divmod(int(round(duration)), 60)
+    return result.text, (f"{m}m {s:02d}s" if m else f"{s}s")

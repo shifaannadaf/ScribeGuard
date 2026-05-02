@@ -1,242 +1,161 @@
 # ScribeGuard
 
-AI-powered clinical documentation assistant for outpatient workflows. ScribeGuard records or imports consultation transcripts, structures them into clinically useful note fields, supports review/approval workflows, and pushes validated data into OpenMRS.
+ScribeGuard is an **agentic AI clinical-documentation platform** integrated with
+**OpenMRS**. Specialized autonomous agents collaborate end-to-end to convert a
+recorded doctor-patient encounter into a physician-reviewed, FHIR-aligned
+clinical record that is written back into the patient's OpenMRS chart —
+medication requests, allergies, conditions, vital-sign observations, and the
+clinical note itself, each in the correct FHIR resource.
+
+The architecture is described in detail in [`ARCHITECTURE.md`](ARCHITECTURE.md).
+
+---
+
+## What runs end-to-end
+
+```
+   Web mic                                                      OpenMRS
+  ┌──────┐  audio   ┌─────────────┐ pipeline  ┌─────────────┐  FHIR R4
+  │React │ ───────▶ │  FastAPI +  │ ────────▶ │  agents +   │ ────────▶
+  │ UI   │          │ orchestrator│           │  OpenAI     │  Encounter,
+  └──────┘ review/  └─────────────┘ persist   └─────────────┘  Observation,
+           approve            ▲                       │        AllergyIntolerance,
+                              │                       ▼        Condition,
+                       ┌────────────────────────────────┐      MedicationRequest
+                       │       PostgreSQL audit         │
+                       │  encounters, transcripts,      │
+                       │  soap_notes, medications,      │
+                       │  allergies, conditions,        │
+                       │  vital_signs, follow_ups,      │
+                       │  patient_contexts,             │
+                       │  agent_runs, audit_events      │
+                       └────────────────────────────────┘
+```
+
+**Seven specialized agents** drive the workflow:
+
+1. **EncounterIntakeAgent** — validates audio, persists it, snapshots the patient's existing OpenMRS chart so the reviewer sees real chart context.
+2. **TranscriptionAgent** — Whisper + cleanup + quality flags.
+3. **ClinicalNoteGenerationAgent** — versioned SOAP note from a GPT-4 family model under an engineered, version-pinned prompt.
+4. **ClinicalEntityExtractionAgent** — classifies the SOAP note + transcript into FHIR-aligned entities: medications, allergies, conditions, vital signs, follow-ups (each with ICD-10/SNOMED where applicable).
+5. **PhysicianReviewAgent** — physician-in-the-loop edit/approve. **Nothing is committed without explicit physician approval.**
+6. **OpenMRSIntegrationAgent** — composite: authenticate → resolve patient → map → write Encounter, clinical-note Observation, vital-sign Observations, AllergyIntolerance, Condition, MedicationRequest → verify.
+7. **AuditTraceabilityAgent** — durable agent-run + clinical-event audit trail, exposed as a queryable timeline.
+
+The orchestrator (`app/orchestrator/orchestrator.py`) is the single piece of
+code that mutates pipeline state, persists every `agent_run`, and emits
+`audit_events`. Retries are configurable via `AGENT_MAX_RETRIES` /
+`AGENT_RETRY_BASE_DELAY_SECONDS`.
 
 ---
 
 ## Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React 18 + TypeScript + Vite + Tailwind CSS |
-| Backend | FastAPI (Python) |
-| Database | PostgreSQL (Docker) |
-| AI | OpenAI Whisper-1 + GPT-4o-mini |
-| EHR | OpenMRS FHIR R4 + OpenMRS REST |
-
----
-
-## Current Capabilities
-
-- Capture encounters from live recording or import plain text transcripts
-- Format raw dialogue with speaker labels (Doctor/Patient)
-- Extract structured clinical data with GPT
-- Review workflow with status controls: pending -> approved -> pushed
-- Group history by patient with expandable visits
-- View patient-level encounter timeline
-- Push encounter data to OpenMRS (patient, encounter, vitals, diagnoses, meds, allergies)
-- Avoid common OpenMRS duplicates (allergy/condition checks)
-- Use AI Assistant with both current encounter context and available OpenMRS history
-
----
-
-## Prerequisites
-
-- [Node.js](https://nodejs.org/) 18+
-- [Python](https://www.python.org/) 3.11+
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- An [OpenAI API key](https://platform.openai.com/api-keys)
+| Layer       | Technology                                   |
+| ----------- | -------------------------------------------- |
+| Frontend    | React 19 + TypeScript + Vite                 |
+| Backend     | FastAPI + Pydantic v2 + SQLAlchemy 2 + Alembic |
+| Database    | PostgreSQL                                   |
+| AI          | OpenAI Whisper + GPT-4 family                |
+| EHR         | OpenMRS REST + FHIR R4                       |
 
 ---
 
 ## Setup
 
-### 1. Clone the repo
-
+### 1. Database
 ```bash
-git clone <repo-url>
-cd scribeguard
+docker compose up -d              # PostgreSQL on :5432
 ```
 
-### 2. Configure environment variables
-
-Create a backend env file:
-
-```bash
-cp backend/.env.example backend/.env
-```
-
-Edit `backend/.env` and set your values:
+### 2. OpenMRS sandbox
+Bring up an OpenMRS Reference Application (FHIR2 module) on
+`http://localhost:8080/openmrs/ws/fhir2/R4`. Then in `backend/.env`:
 
 ```env
 # App
 DATABASE_URL=postgresql://scribeguard:scribeguard@localhost:5432/scribeguard
-OPENAI_API_KEY=sk-...your-key-here
-
-# OpenMRS
+OPENAI_API_KEY=sk-...
 FHIR_SERVER=http://localhost:8080/openmrs/ws/fhir2/R4
 OPENMRS_USER=Admin
 OPENMRS_PASSWORD=Admin123
+OPENMRS_SIMULATE=false
 ```
 
-### 3. Start backend + database with Docker
+`OPENMRS_SIMULATE=false` is the production default — the OpenMRS
+Integration Agent makes real FHIR calls. Set it to `true` only for CI /
+smoke tests where no sandbox is reachable.
 
-```bash
-docker compose up -d
-```
-
-This starts:
-
-- PostgreSQL on `localhost:5432`
-- FastAPI backend on `localhost:8000`
-
-### 4. (Optional) Seed the database
-
-If you want sample local data:
-
+### 3. Backend
 ```bash
 cd backend
-python seed.py
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+alembic upgrade head               # or: python create_tables.py
+uvicorn app.main:app --reload --port 8000
 ```
 
-### 5. Start frontend
+Swagger UI: `http://localhost:8000/docs`
 
+### 4. Frontend
 ```bash
 cd frontend
 npm install
-npm run dev
+npm run dev                        # http://localhost:5173
 ```
-
-Frontend runs on `http://localhost:5173` (or `5174` if `5173` is occupied).
-
-### 6. Verify services
-
-- API health: `http://localhost:8000/health`
-- API docs: `http://localhost:8000/docs`
-
----
-
-## OpenMRS Notes
-
-- ScribeGuard uses FHIR R4 endpoints for most resources.
-- Diagnoses/conditions use an OpenMRS REST flow to ensure proper concept mapping and display.
-- Encounter push requires approved status.
-- If you need to re-test a pushed encounter, use the unpush endpoint to move it back to approved.
 
 ---
 
 ## Usage
 
-### Record or import a consultation
+1. **Dashboard** — start a new encounter. The browser MediaRecorder captures audio. On stop, the file is uploaded and the orchestrator runs the full agent pipeline.
+2. **Encounter Workspace** — the physician sees:
+   - **Pipeline timeline** — live agent execution status
+   - **SOAP Review** — editable Subjective / Objective / Assessment / Plan with low-confidence highlighting; **explicit Approve & Lock** required
+   - **Medications**, **Allergies**, **Conditions**, **Vital Signs**, **Follow-ups** — each in its own panel mirroring the matching FHIR resource
+   - **Transcript** — Whisper output with quality signals
+   - **Agents** — every agent run with attempt, duration, error context
+   - **Audit** — the full clinical/business event log
+   - Right-side **OpenMRS chart context** sidebar — demographics, active medications, allergies, conditions, recent encounters, **all fetched live from OpenMRS**
+3. After approval, **Submit to OpenMRS** writes back: clinical-note Observation, vital-sign Observations (CIEL-coded), AllergyIntolerance, Condition (ICD-10 + SNOMED), MedicationRequest. Each write returns a UUID stored on the entity row.
 
-1. Open **Dashboard**.
-2. Create/select patient context.
-3. Either:
-   - Record audio with the mic, or
-   - Import a `.txt` transcript file.
-4. Run formatting/extraction pipeline.
-5. Review in **Note Detail**.
-6. Approve, then push to OpenMRS.
-
-### Review and push workflow
-
-- **Edit**: Update transcript and extracted fields
-- **View**: Read-only clinical review
-- **AI Assistant**: Ask clinical/contextual questions
-- **Approve**: Mark reviewed and ready for push
-- **Revert**: Move approved back to pending
-- **Push to OpenMRS**: Send to EHR (approved only)
-- **Unpush**: Move pushed back to approved for retesting
-
-### History and patient drill-down
-
-- **History** page groups encounters by patient.
-- Multi-visit patients can be expanded/collapsed.
-- Use patient timeline view for all visits for one patient.
+No demo data is seeded — every entity in the UI comes from a real audio
+recording, a real Whisper/GPT call, or a real OpenMRS read.
 
 ---
 
-## API Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/encounters` | List encounters (filter by status, search) |
-| POST | `/encounters` | Create encounter |
-| GET | `/encounters/{id}` | Get encounter detail |
-| PATCH | `/encounters/{id}` | Update transcript / structured data |
-| PATCH | `/encounters/{id}/approve` | Approve encounter |
-| PATCH | `/encounters/{id}/revert` | Revert to pending |
-| PATCH | `/encounters/{id}/unpush` | Move pushed -> approved |
-| DELETE | `/encounters/{id}` | Delete encounter |
-| POST | `/encounters/{id}/transcribe` | Transcribe audio file (Whisper) |
-| POST | `/encounters/{id}/generate` | Extract SOAP data (GPT-4) |
-| POST | `/encounters/{id}/format` | Add speaker labels (GPT-4) |
-| POST | `/encounters/{id}/chat` | AI assistant chat |
-| POST | `/encounters/{id}/push` | Push to OpenMRS |
-| GET | `/encounters/patient-status?patient_id=...` | New vs returning patient check |
-| GET | `/encounters/stats` | Dashboard stats |
-| GET | `/encounters/{id}/export/pdf` | Export as PDF |
-| GET | `/health` | Health check |
-
-Full interactive docs at `http://localhost:8000/docs`
-
----
-
-## Frontend Routes
-
-| Route | Purpose |
-|------|---------|
-| `/dashboard` | Record/import and run extraction pipeline |
-| `/history` | Encounter history grouped by patient |
-| `/notes/:id` | Review and edit one encounter |
-| `/notes/:id/ai` | AI assistant for encounter |
-| `/patients` | OpenMRS patient search/list |
-| `/patients/encounters/:patientId` | Patient timeline across visits |
-| `/patients/:uuid` | OpenMRS patient profile |
-
----
-
-## Project Structure
+## Repository layout
 
 ```
-scribeguard/
-├── backend/
-│   ├── app/
-│   │   ├── main.py              # FastAPI app, CORS, router registration
-│   │   ├── config.py            # App settings
-│   │   ├── whisper_service.py   # OpenAI Whisper transcription
-│   │   ├── gpt_service.py       # GPT extraction/format/chat
-│   │   ├── db/
-│   │   │   └── database.py      # SQLAlchemy engine + session
-│   │   ├── models/
-│   │   │   └── models.py        # Encounter + related clinical models
-│   │   ├── openmrs/             # OpenMRS FHIR/REST integration layer
-│   │   ├── routers/
-│   │   │   ├── encounters.py    # CRUD + stats
-│   │   │   ├── pipeline.py      # transcribe / format / generate
-│   │   │   ├── chat.py          # AI assistant
-│   │   │   ├── openmrs.py       # OpenMRS push
-│   │   │   └── export.py        # PDF export
-│   │   └── schemas/
-│   │       ├── encounter.py     # Pydantic schemas
-│   │       └── misc.py          # Chat, pipeline schemas
-│   ├── seed.py                  # Seed 5 mock encounters
-│   ├── docker-compose.yml       # PostgreSQL container
-│   ├── requirements.txt
-│   └── .env.example
-├── frontend/
-│   ├── src/
-│   │   ├── api/
-│   │   │   ├── client.ts        # Base fetch wrapper
-│   │   │   └── encounters.ts    # All API calls + types
-│   │   ├── components/
-│   │   │   ├── AppLayout.tsx    # Sidebar + outlet
-│   │   │   └── Sidebar.tsx      # Nav
-│   │   └── pages/
-│   │       ├── Login.tsx
-│   │       ├── Dashboard.tsx    # Record/import + stats
-│   │       ├── History.tsx      # Patient-grouped encounter history
-│   │       ├── NoteDetail.tsx   # Edit / view note
-│   │       └── AiAssistant.tsx  # Chat UI
-│   └── package.json
-└── .gitignore
+backend/
+  app/
+    agents/                   # 7 specialized agents (+ OpenMRS sub-agents)
+      intake.py
+      transcription.py
+      note_generation.py
+      clinical_extraction.py
+      physician_review.py
+      openmrs/                # auth, patient_context, encounter_mapper, note_writer, verifier, integration
+      audit.py
+      prompts/                # version-pinned engineered prompts
+    orchestrator/             # AgentOrchestrator + AgentRegistry
+    repositories/             # data access boundary
+    clients/                  # OpenAI wrapper
+    openmrs/                  # FHIR R4 HTTP client (kept from baseline)
+    models/                   # SQLAlchemy models, one per aggregate
+    schemas/                  # Pydantic v2 API schemas
+    routers/                  # FastAPI HTTP routes
+    main.py
+  alembic/                    # migrations 0001 + 0002
+frontend/
+  src/
+    pages/                    # Login, Dashboard, History, EncounterWorkspace
+    components/               # AgentTimeline, SoapEditor, MedicationPanel,
+                              # EntityPanels, PatientContextPanel
+    api/                      # Typed API client
+ARCHITECTURE.md
 ```
 
----
-
-## Troubleshooting
-
-- If OpenMRS push fails with auth errors, verify `OPENMRS_USER` and `OPENMRS_PASSWORD`.
-- If frontend cannot reach backend, confirm API is up at `http://localhost:8000/health`.
-- If CORS issues appear, ensure frontend is running on `5173` or `5174`.
-- If a pushed encounter must be resent, call `/encounters/{id}/unpush` first.
+See `ARCHITECTURE.md` for the deep dive on agent contracts, state machine,
+extension points (Layer 2 prescription reconciliation, Layer 3 dosage
+anomaly detection, e-prescribing, etc.) and engineering rationale.
