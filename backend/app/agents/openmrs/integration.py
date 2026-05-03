@@ -161,6 +161,27 @@ class OpenMRSIntegrationAgent(Agent[dict[str, Any]]):
             except Exception as exc:  # noqa: BLE001
                 raise AgentExecutionError(f"OpenMRS SOAP Observation write failed: {exc}") from exc
 
+            # 4b-ii) SOAP PDF attachment ──────────────────────────────
+            try:
+                pdf_bytes = self.writer.generate_soap_pdf(
+                    patient_name=encounter.patient_name,
+                    patient_id=encounter.patient_id,
+                    visit_date=visit_ts,
+                    subjective=note.subjective,
+                    objective=note.objective,
+                    assessment=note.assessment,
+                    plan=note.plan,
+                )
+                caption = f"SOAP Note - {encounter.patient_name} - {visit_ts[:10]}"
+                self.writer.upload_soap_attachment(
+                    patient_uuid=patient_uuid,
+                    encounter_uuid=openmrs_encounter_uuid,
+                    pdf_bytes=pdf_bytes,
+                    caption=caption,
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("SOAP PDF attachment failed (non-fatal): %s", exc)
+
             # 4c) Vital signs (REST obs) ────────────────────────────
             vitals = ctx.entities.list_vital_signs(encounter.id)
             vital_uuids: list[str] = []
@@ -239,6 +260,25 @@ class OpenMRSIntegrationAgent(Agent[dict[str, Any]]):
                 except Exception as exc:  # noqa: BLE001
                     medication_errors.append(f"{m.name}: {exc}")
 
+            # 4g) Follow-up appointments ────────────────────────────
+            follow_ups = ctx.entities.list_follow_ups(encounter.id)
+            followup_uuids: list[str] = []
+            followup_errors: list[str] = []
+            for f in follow_ups:
+                try:
+                    appt_id = self.writer.create_appointment(
+                        patient_uuid=patient_uuid,
+                        description=f.description,
+                        interval=f.interval,
+                        target_date=f.target_date,
+                        visit_ts=visit_ts,
+                    )
+                    f.openmrs_resource_uuid = appt_id
+                    if appt_id:
+                        followup_uuids.append(appt_id)
+                except Exception as exc:  # noqa: BLE001
+                    followup_errors.append(f"{f.description[:40]}: {exc}")
+
             # Persist submission outcome ─────────────────────────────
             response_summary = {
                 "encounter_uuid":    openmrs_encounter_uuid,
@@ -247,6 +287,7 @@ class OpenMRSIntegrationAgent(Agent[dict[str, Any]]):
                 "allergy_uuids":     allergy_uuids,
                 "condition_uuids":   condition_uuids,
                 "medication_uuids":  medication_uuids,
+                "followup_uuids":    followup_uuids,
                 "errors": {
                     "vitals":     vital_errors,
                     "allergies":  allergy_errors,

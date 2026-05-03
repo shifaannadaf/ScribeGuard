@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     OPENMRS_PASSWORD: str = "Admin123"
     OPENMRS_DEFAULT_PRACTITIONER_UUID: str = "f9badd80-ab76-11e2-9e96-0800200c9a66"
     OPENMRS_DEFAULT_LOCATION_UUID: str = "8d6c993e-c2cc-11de-8d13-0010c6dffd0f"
+    OPENMRS_FOLLOWUP_SERVICE_UUID: str = ""
 
     # ScribeGuard is a production system — by default it talks to the real
     # OpenMRS FHIR R4 endpoint configured above. Set OPENMRS_SIMULATE=true

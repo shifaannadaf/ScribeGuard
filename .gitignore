@@ -52,4 +52,6 @@ uploads/
 *.mp3
 *.wav
 *.m4a
-train.csvextraction_results.json
+train.csv
+
+extraction_results.json
