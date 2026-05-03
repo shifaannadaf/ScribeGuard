@@ -72,6 +72,7 @@ app.include_router(patient_context_router.router)
 app.include_router(openmrs_router.router)
 app.include_router(chat.router)
 app.include_router(export.router)
+app.include_router(fhir_router)
 
 
 @app.get("/health", tags=["Health"])
