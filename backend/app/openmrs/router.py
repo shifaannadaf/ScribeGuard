@@ -19,7 +19,6 @@ import httpx
 
 from .metadata    import get_metadata
 from .patient     import get_patient_by_identifier, get_patient_by_uuid, search_patients
-from .encounter   import create_encounter
 from .allergy     import get_allergies, create_allergy, update_allergy, delete_allergy
 from .condition   import get_conditions, create_condition, update_condition, delete_condition
 from .observation import (
@@ -54,13 +53,6 @@ def _run(fn, *args, **kwargs):
 # ---------------------------------------------------------------------------
 # Request body schemas
 # ---------------------------------------------------------------------------
-
-class CreateEncounterBody(BaseModel):
-    patient_ref: str                      # "Patient/076154fc-..."
-    practitioner_ref: str                 # "Practitioner/82f18b44-..."
-    location_ref: str = "Location/1"
-    start: Optional[str] = None
-    end:   Optional[str] = None
 
 class CreateAllergyBody(BaseModel):
     patient_uuid: str
@@ -137,17 +129,6 @@ def route_patient_by_identifier(identifier: str):
 @router.get("/patient/{patient_uuid}", summary="Get patient by UUID")
 def route_patient_by_uuid(patient_uuid: str):
     return _run(get_patient_by_uuid, patient_uuid)
-
-
-# ===========================================================================
-# ENCOUNTER
-# ===========================================================================
-
-@router.post("/encounter", summary="Create encounter")
-def route_encounter_create(body: CreateEncounterBody):
-    return _run(create_encounter,
-                body.patient_ref, body.practitioner_ref,
-                body.location_ref, body.start, body.end)
 
 
 # ===========================================================================
