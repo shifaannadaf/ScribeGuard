@@ -109,6 +109,8 @@ class FollowUp(Base):
     with_provider  = Column(String(255), nullable=True)
     confidence     = Column(String(16),  nullable=True)
 
+    openmrs_resource_uuid = Column(String(64), nullable=True)
+
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
 
     encounter = relationship("Encounter", back_populates="follow_ups")

@@ -7,7 +7,8 @@ pattern). FHIR is kept only for the clinical-note Observation (SOAP text).
 
 Entity write strategy:
     Encounter        → REST  POST /ws/rest/v1/encounter
-    SOAP Observation → FHIR  POST /Observation  (text, works fine)
+    SOAP Observation → REST  POST /ws/rest/v1/obs  (Text of encounter note)
+    SOAP PDF         → REST  POST /ws/rest/v1/attachment  (multipart/form-data)
     Vital signs      → REST  POST /ws/rest/v1/obs  (concept lookup by name)
     Allergies        → REST  POST /ws/rest/v1/patient/{uuid}/allergy
     Conditions       → REST  POST /ws/rest/v1/condition
@@ -128,6 +129,8 @@ class OpenMRSNoteWriterAgent:
 
     # ── Encounter ─────────────────────────────────────────────────────────
 
+    _VISIT_TYPE_NAME = "OPD Visit"
+
     def create_encounter(
         self,
         patient_uuid: str,
@@ -142,13 +145,16 @@ class OpenMRSNoteWriterAgent:
             logger.info("Simulating encounter → %s", sim)
             return sim
 
-        enc_type_uuid   = _get_uuid("encountertype", encounter_type_name)
-        loc_uuid        = location_uuid or _get_uuid("location", "Unknown Location") or settings.OPENMRS_DEFAULT_LOCATION_UUID
-        prov_uuid       = provider_uuid or settings.OPENMRS_DEFAULT_PRACTITIONER_UUID
-        enc_role_uuid   = _get_uuid("encounterrole", encounter_role_name)
+        enc_type_uuid = _get_uuid("encountertype", encounter_type_name)
+        loc_uuid      = location_uuid or settings.OPENMRS_DEFAULT_LOCATION_UUID
+        prov_uuid     = provider_uuid or settings.OPENMRS_DEFAULT_PRACTITIONER_UUID
+        enc_role_uuid = _get_uuid("encounterrole", encounter_role_name)
 
         if not enc_type_uuid:
             raise RuntimeError(f"Encounter type '{encounter_type_name}' not found in OpenMRS.")
+
+        # Create a Visit first so the encounter appears in the Visits tab
+        visit_uuid = self._create_visit(patient_uuid, visit_ts, loc_uuid)
 
         payload: dict[str, Any] = {
             "encounterDatetime": visit_ts,
@@ -156,6 +162,8 @@ class OpenMRSNoteWriterAgent:
             "encounterType":     enc_type_uuid,
             "location":          loc_uuid,
         }
+        if visit_uuid:
+            payload["visit"] = visit_uuid
         if prov_uuid and enc_role_uuid:
             payload["encounterProviders"] = [
                 {"provider": prov_uuid, "encounterRole": enc_role_uuid}
@@ -165,8 +173,37 @@ class OpenMRSNoteWriterAgent:
         enc_uuid = data.get("uuid")
         if not enc_uuid:
             raise RuntimeError(f"OpenMRS did not return encounter UUID. Response: {data}")
-        logger.info("Encounter created → %s", enc_uuid)
+        logger.info("Encounter created → %s (visit → %s)", enc_uuid, visit_uuid)
         return enc_uuid
+
+    def _create_visit(
+        self,
+        patient_uuid: str,
+        visit_ts: str,
+        location_uuid: Optional[str] = None,
+    ) -> Optional[str]:
+        """Create an OPD Visit so the encounter is visible in the Visits tab."""
+        try:
+            visit_type_uuid = _get_uuid("visittype", self._VISIT_TYPE_NAME)
+            if not visit_type_uuid:
+                logger.warning("Visit type '%s' not found — encounter will have no visit", self._VISIT_TYPE_NAME)
+                return None
+
+            payload: dict[str, Any] = {
+                "patient":       patient_uuid,
+                "visitType":     visit_type_uuid,
+                "startDatetime": visit_ts,
+            }
+            if location_uuid:
+                payload["location"] = location_uuid
+
+            data = _rest_post("visit", payload)
+            visit_uuid = data.get("uuid")
+            logger.info("Visit created → %s", visit_uuid)
+            return visit_uuid
+        except Exception as exc:
+            logger.warning("Visit creation failed (non-fatal): %s", exc)
+            return None
 
     # ── Clinical-note Observation (REST) ─────────────────────────────────
     # CIEL concept 162169 = "Text of encounter note" (accepts free text)
@@ -196,6 +233,106 @@ class OpenMRSNoteWriterAgent:
             raise RuntimeError(f"OpenMRS did not return SOAP obs UUID. Response: {data}")
         logger.info("SOAP observation → %s", obs_uuid)
         return obs_uuid
+
+    # ── SOAP PDF attachment ───────────────────────────────────────────────
+
+    @staticmethod
+    def _safe(text: str) -> str:
+        """Replace characters outside Latin-1 range so Helvetica renders cleanly."""
+        replacements = {"—": "-", "–": "-", "’": "'", "‘": "'",
+                        "“": '"', "”": '"', "•": "*", "°": " deg"}
+        for ch, sub in replacements.items():
+            text = text.replace(ch, sub)
+        return text.encode("latin-1", errors="replace").decode("latin-1")
+
+    def generate_soap_pdf(
+        self,
+        patient_name: str,
+        patient_id: str,
+        visit_date: str,
+        subjective: str,
+        objective: str,
+        assessment: str,
+        plan: str,
+    ) -> bytes:
+        """Render the SOAP note as a PDF and return raw bytes."""
+        from fpdf import FPDF
+
+        s = self._safe
+
+        pdf = FPDF()
+        pdf.set_auto_page_break(auto=True, margin=15)
+        pdf.add_page()
+
+        # Header
+        pdf.set_font("Helvetica", "B", 16)
+        pdf.cell(0, 10, "ScribeGuard Clinical Note", ln=True, align="C")
+        pdf.set_font("Helvetica", "", 10)
+        pdf.cell(0, 6, s(f"Patient: {patient_name}  |  ID: {patient_id}  |  Date: {visit_date[:10]}"), ln=True, align="C")
+        pdf.ln(4)
+        pdf.set_draw_color(180, 180, 180)
+        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+        pdf.ln(6)
+
+        sections = [
+            ("SUBJECTIVE",  subjective),
+            ("OBJECTIVE",   objective),
+            ("ASSESSMENT",  assessment),
+            ("PLAN",        plan),
+        ]
+        for title, body in sections:
+            pdf.set_font("Helvetica", "B", 12)
+            pdf.set_fill_color(240, 240, 240)
+            pdf.cell(0, 8, title, ln=True, fill=True)
+            pdf.set_font("Helvetica", "", 10)
+            pdf.ln(2)
+            for line in (body or "").splitlines():
+                pdf.multi_cell(0, 5, s(line) or " ")
+            pdf.ln(4)
+
+        # Footer
+        pdf.set_y(-20)
+        pdf.set_font("Helvetica", "I", 8)
+        pdf.set_text_color(150, 150, 150)
+        pdf.cell(0, 5, "Generated by ScribeGuard - Physician approved", align="C")
+
+        return bytes(pdf.output())
+
+    def upload_soap_attachment(
+        self,
+        patient_uuid: str,
+        encounter_uuid: str,
+        pdf_bytes: bytes,
+        caption: str,
+    ) -> Optional[str]:
+        """Upload a PDF to OpenMRS attachment module."""
+        if settings.OPENMRS_SIMULATE:
+            sim = f"sim-att-{_uuid.uuid4()}"
+            logger.info("Simulating SOAP attachment → %s", sim)
+            return sim
+
+        import base64
+        url = f"{_REST_BASE}/ws/rest/v1/attachment"
+        token = base64.b64encode(
+            f"{settings.OPENMRS_USER}:{settings.OPENMRS_PASSWORD}".encode()
+        ).decode()
+
+        with httpx.Client(timeout=30.0) as c:
+            resp = c.post(
+                url,
+                headers={"Authorization": f"Basic {token}"},
+                data={
+                    "patient":      patient_uuid,
+                    "encounter":    encounter_uuid,
+                    "fileCaption":  caption,
+                },
+                files={"file": (f"{caption}.pdf", pdf_bytes, "application/pdf")},
+            )
+            resp.raise_for_status()
+
+        att_uuid = resp.json().get("uuid")
+        logger.info("SOAP PDF attachment → %s", att_uuid)
+        return att_uuid
 
     # ── Vital signs (REST obs) ────────────────────────────────────────────
 
@@ -422,6 +559,120 @@ class OpenMRSNoteWriterAgent:
         order_uuid = data.get("uuid")
         logger.info("Medication order '%s' → %s", drug_name, order_uuid)
         return order_uuid
+
+    # ── Follow-up appointments ────────────────────────────────────────────
+    _FOLLOWUP_SERVICE_NAME = "General Follow-up"
+
+    def create_appointment(
+        self,
+        patient_uuid: str,
+        description: str,
+        interval: Optional[str],
+        target_date: Optional[str],
+        visit_ts: str,
+    ) -> Optional[str]:
+        if settings.OPENMRS_SIMULATE:
+            return f"sim-appt-{_uuid.uuid4()}"
+
+        # Resolve (or create) the follow-up service
+        service_uuid = self._get_or_create_followup_service()
+        if not service_uuid:
+            logger.warning("No appointment service found — skipping follow-up '%s'", description)
+            return None
+
+        # Compute appointment datetime
+        appt_dt = self._resolve_appointment_date(visit_ts, interval, target_date)
+
+        end_dt = self._add_minutes(appt_dt, 30)
+
+        payload: dict[str, Any] = {
+            "patientUuid":      patient_uuid,
+            "serviceUuid":      service_uuid,
+            "startDateTime":    appt_dt,
+            "endDateTime":      end_dt,
+            "appointmentKind":  "Scheduled",
+            "status":           "Scheduled",
+            "comments":         self._safe(f"{description}{' (' + interval + ')' if interval else ''}"),
+        }
+
+        data = _rest_post("appointments", payload)
+        appt_uuid = data.get("uuid")
+        logger.info("Appointment '%s' → %s (start: %s)", description[:40], appt_uuid, appt_dt)
+        return appt_uuid
+
+    def _get_or_create_followup_service(self) -> Optional[str]:
+        """Return the General Follow-up service UUID from config, creating it if absent."""
+        # Use preconfigured UUID when available (avoids the broken LIST endpoint)
+        if settings.OPENMRS_FOLLOWUP_SERVICE_UUID:
+            return settings.OPENMRS_FOLLOWUP_SERVICE_UUID
+
+        # Fallback: create the service and expect caller to persist the UUID to config
+        try:
+            resp = _rest_post("appointmentService", {
+                "name":         self._FOLLOWUP_SERVICE_NAME,
+                "description":  "General outpatient follow-up appointments",
+                "durationMins": 30,
+                "color":        "#006EFF",
+                "startTime":    "08:00:00",
+                "endTime":      "17:00:00",
+            })
+            svc_uuid = resp.get("uuid")
+            logger.info("Created appointment service '%s' → %s (add to OPENMRS_FOLLOWUP_SERVICE_UUID in .env)", self._FOLLOWUP_SERVICE_NAME, svc_uuid)
+            return svc_uuid
+        except Exception as exc:
+            logger.warning("Appointment service create failed: %s", exc)
+            return None
+
+    @staticmethod
+    def _resolve_appointment_date(
+        visit_ts: str,
+        interval: Optional[str],
+        target_date: Optional[str],
+    ) -> str:
+        """
+        Convert an interval like '6 weeks' or 'within one week' into an ISO
+        datetime string. Falls back to 4 weeks from visit_ts if unparseable.
+        """
+        from datetime import datetime, timezone, timedelta
+        import re
+
+        # Prefer an explicit target date
+        if target_date:
+            try:
+                dt = datetime.fromisoformat(target_date.replace("Z", "+00:00"))
+                return dt.strftime("%Y-%m-%dT00:00:00.000+0000")
+            except ValueError:
+                pass
+
+        # Parse interval string
+        try:
+            base = datetime.fromisoformat(visit_ts.replace("Z", "+00:00"))
+        except ValueError:
+            base = datetime.now(timezone.utc)
+
+        days = 28  # default: 4 weeks
+        if interval:
+            text = interval.lower()
+            # word numbers
+            word_map = {"one": 1, "two": 2, "three": 3, "four": 4,
+                        "five": 5, "six": 6, "seven": 7, "eight": 8}
+            for word, num in word_map.items():
+                text = text.replace(word, str(num))
+            m = re.search(r"(\d+)\s*(day|week|month|year)", text)
+            if m:
+                n, unit = int(m.group(1)), m.group(2)
+                days = {"day": n, "week": n * 7, "month": n * 30, "year": n * 365}[unit]
+
+        appt = base + timedelta(days=days)
+        return appt.strftime("%Y-%m-%dT00:00:00.000+0000")
+
+    @staticmethod
+    def _add_minutes(dt_str: str, minutes: int) -> str:
+        from datetime import datetime, timedelta
+        dt = datetime.strptime(dt_str, "%Y-%m-%dT%H:%M:%S.000+0000")
+        return (dt + timedelta(minutes=minutes)).strftime("%Y-%m-%dT%H:%M:%S.000+0000")
+
+
 
     # ── Helpers ───────────────────────────────────────────────────────────
 
