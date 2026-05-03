@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+import logging
 
 from app.clients.openai_client import openai_client
 from app.config import settings
@@ -20,6 +21,7 @@ from app.repositories import EncounterRepository, SoapRepository, TranscriptRepo
 
 
 router = APIRouter(prefix="/encounters", tags=["AI Chat"])
+logger = logging.getLogger(__name__)
 
 
 class ChatMessage(BaseModel):
