@@ -44,8 +44,9 @@ export default function AgentTimeline({ currentStage, runs }: Props) {
     }}>
       {PIPELINE_STAGES.map((s, i) => {
         const stageIdx = stageIndex(s.stage)
-        const done   = stageIdx <= cur
-        const active = stageIdx === cur
+        const terminalDone = currentStage === 'submitted'
+        const done   = stageIdx < cur || (stageIdx === cur && terminalDone)
+        const active = stageIdx === cur && !terminalDone
         const failed = currentStage === 'failed' && i === PIPELINE_STAGES.findIndex(p => p.stage === STAGE_ORDER[Math.max(cur, 0)])
         const lastRun = [...runs].reverse().find(r => r.agent_name === s.agent)
         const ms = lastRun?.duration_ms != null ? `${(lastRun.duration_ms / 1000).toFixed(1)}s` : ''
